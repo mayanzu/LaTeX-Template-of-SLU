@@ -1,0 +1,42 @@
+\hspace*{\fill} %标题前空两行
+
+\section{游戏设计}
+
+\subsection{基本操作方式}
+“基本操作方式”通常指的是在游戏中玩家与游戏世界进行交互的方式，这些操作方式包括移动、跳跃，使玩家可以控制游戏角色在游戏世界中进行移动与跳跃。
+在本系统中，使用键盘中A键控制角色向左进行移动，键盘中D键控制角色向右进行移动，键盘中空格键控制角色进行跳跃。
+在本系统中，我们设计有二次跳跃的机制，二次跳跃是指在平台游戏或类似类型的游戏中，玩家在空中进行第二次跳跃的行为，通常，玩家在跳跃后达到最高点或在空中时，可以再次按下跳跃按钮，从而使角色在空中再次执行跳跃动作。
+\subsection{游戏关卡设计}
+\subsubsection{障碍物}
+\begin{table}[H]
+  \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
+  \centering
+  \caption{示例表格2}
+  \setlength{\tabcolsep}{11mm}{% 设置每列宽度
+  \begin{tabular}{cccc}
+    \hline
+    \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}\\
+    \hline
+    1 & Product & 农产品产品ID & Int\\
+    \hline
+    2 & Name & 农产品产品ID & Varchar(255) \\
+    \hline
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
+  \centering
+  \caption{示例表格2}
+  \setlength{\tabcolsep}{11mm}{% 设置每列宽度
+  \begin{tabular}{cccc}
+    \hline
+    \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}\\
+    \hline
+    1 & Product & 农产品产品ID & Int\\
+    \hline
+    2 & Name & 农产品产品ID & Varchar(255) \\
+    \hline
+  \end{tabular}}
+\end{table}
+在游戏开发中，障碍物通常指的是游戏世界中的物体或结构，其目的是增加游戏的挑战性和乐趣。障碍物可以以各种形式出现，本篇论文中障碍物为陷阱，陷阱是一种设计用来捕捉或伤害玩家的障碍物。这些可以是触发式的，例如地刺、陷阱门，也可以是持续性的，例如毒气云或滚动的岩石，本篇论文中仅使用地刺作为障碍物。

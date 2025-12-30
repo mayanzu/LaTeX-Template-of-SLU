@@ -1,0 +1,121 @@
+\hspace*{\fill} %标题前空两行
+\section{基础概念}
+
+\subsection{Unity发展史}
+Unity是一个跨平台的游戏开发引擎。它是由Unity Technologies公司开发，于2005年6月在苹果全球开发者大会上作为Mac OS X游戏引擎首次发布。
+
+Unity现在已经支持桌面端、移动端、游戏主机、增强现实和虚拟现实平台。尤其在iOS和Android游戏开发方面，颇受开发者青睐，其对于初学者来说容易使用，并且在独立游戏开发中很受欢迎。
+
+当然，Unity除了可以开发3D和2D游戏外，也可以创建互动解决方案。除了视频游戏，诸如电影、汽车、建筑、工程、制造等行业，甚至美国军队都采用了Unity的引擎。
+
+Ambrosia Software于 2005 年 3 月发布了 Gooball。这是一款看起来远远超前于时代的游戏，制作成本仅为其他游戏的一小部分。这款游戏也为 Unity 团队提供了在正式发布之前彻底检查其引擎、识别错误、解决用户烦恼并改进界面的机会。
+
+\subsection{插入表格}
+
+表格示例如下：
+\begin{table}[H]
+  \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
+  \centering
+  \caption{示例表格1}
+  \setlength{\tabcolsep}{5.9mm}{% 设置每列宽度
+  \begin{tabular}{cccccc}
+    \hline
+    \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}&\textbf{主键}&\textbf{备注}\\
+    \hline
+    1 & Product & \thead{农产品 \\ 产品ID} & Int & \checkmark & 自增长\\
+    \hline
+    2 & Name & 农产品产品ID & Varchar(255) &  & \\
+    \hline
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
+  \centering
+  \caption{示例表格2}
+  \setlength{\tabcolsep}{11mm}{% 设置每列宽度
+  \begin{tabular}{cccc}
+    \hline
+    \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}\\
+    \hline
+    1 & Product & 农产品产品ID & Int\\
+    \hline
+    2 & Name & 农产品产品ID & Varchar(255) \\
+    \hline
+  \end{tabular}}
+\end{table}
+
+\subsection{插入图片}
+\subsubsection{示例}
+相机视角（Camera View）在游戏开发中是指玩家或观察者在游戏中所看到的场景的视角或视觉角度。在Unity或其他游戏开发引擎中，可以通过设置摄像机的位置、旋转和投影方式来定义相机视角。
+
+为了实现屏幕随着主角移动而移动，需要将相机与角色相绑定，采用最简单的绑定方法，导入“Main Camera”到角色文件上，调整相机位置，这样在角色移动的时候，相机会随着角色进行移动。
+
+相机视角（Camera View）在游戏开发中是指玩家或观察者在游戏中所看到的场景的视角或视觉角度。在Unity或其他游戏开发引擎中，可以通过设置摄像机的位置、旋转和投影方式来定义相机视角。
+
+为了实现屏幕随着主角移动而移动，需要将相机与角色相绑定，采用最简单的绑定方法，导入“Main Camera”到角色文件上，调整相机位置，这样在角色移动的时候，相机会随着角色进行移动。相机视角（Camera View）在游戏开发中是指玩家或观察者在游戏中所看到的场景的视角或视觉角度。在Unity或其他游戏开发引擎中，可以通过设置摄像机的位置、旋转和投影方式来定义相机视角。
+
+为了实现屏幕随着主角移动而移动，需要将相机与角色相绑定，采用最简单的绑定方法，导入“Main Camera”到角色文件上，调整相机位置，这样在角色移动的时候，相机会随着角色进行移动。相机视角（Camera View）在游戏开发中是指玩家或观察者在游戏中所看到的场景的视角或视觉角度。在Unity或其他游戏开发引擎中，可以通过设置摄像机的位置、旋转和投影方式来定义相机视角。
+
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\linewidth]{pic/2-1.png}
+  \caption{示例图片}
+\end{figure}
+
+\subsubsection{插入代码}
+在角色身上创建一个新脚本，命名为“donghua.cs”，代码如下。
+
+\begin{lstlisting}[language=java]
+namespace ClearSky
+{
+    public class WizDemo1 : MonoBehaviour
+    {
+        Animator anim;
+        // 在游戏对象激活时调用，初始化动画控制器
+        void Awake()
+        {
+            anim = GetComponent<Animator>();
+        }
+        // 重置所有动画状态
+        void ResetAnimation()
+        {
+            // 将所有布尔值重置为false
+            anim.SetBool("isLookUp", false);
+            anim.SetBool("isRun", false);
+            anim.SetBool("isJump", false);
+        }
+        // 角色站立动画
+        public void Idle()
+        {
+            ResetAnimation();
+            anim.SetTrigger("idle");
+        }
+        // 角色受伤动画
+        public void Hurt()
+        {
+            ResetAnimation();
+            anim.SetTrigger("hurt");
+        }
+        // 角色死亡动画
+        public void Die()
+        {
+            ResetAnimation();
+            anim.SetTrigger("die");
+        }
+        // 角色奔跑动画
+        public void Run()
+        {
+            ResetAnimation();
+            anim.SetBool("isRun", true);
+        }
+        // 角色跳跃动画
+        public void Jump()
+        {
+            ResetAnimation();
+            anim.SetBool("isJump", true);
+        }
+    }
+}
+    \end{lstlisting}

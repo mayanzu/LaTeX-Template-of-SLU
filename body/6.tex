@@ -1,0 +1,39 @@
+\hspace*{\fill} %标题前空两行
+
+\section{游戏导出与测试}
+
+游戏导出是指将Unity中开发完成的游戏项目导出为可执行文件或游戏包，以便在不同平台上进行发布和分发。Unity支持导出游戏到多个平台，包括Windows、Mac、Linux、iOS、Android等。
+
+在Unity编辑器（图6-1）中，选择菜单栏中的“File”->“Build Settings”打开构建设置窗口，在构建设置窗口中，将需要导出的场景添加到“Scenes In Build”列表中，确保它们会包含在构建中，选择目标平台“Windows”,调整分辨率为“960x600”。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\linewidth]{pic/6-1.png}
+  \caption{示例图片}
+\end{figure}
+
+
+\begin{table}[H]
+  \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
+  \centering
+  \caption{示例表格2}
+  \setlength{\tabcolsep}{11mm}{% 设置每列宽度
+  \begin{tabular}{cccc}
+    \hline
+    \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}\\
+    \hline
+    1 & Product & 农产品产品ID & Int\\
+    \hline
+    2 & Name & 农产品产品ID & Varchar(255) \\
+    \hline
+  \end{tabular}}
+\end{table}
+
+游戏测试作为软件测试的一部分，具备软件测试共同的特性，测试的目的是发现软件中存在的缺陷，测试需要测试人员按照产品行为描述来实施。游戏测试作为游戏开发中质量保证的最重要的环节，在游戏设计与开发的过程中发挥着不可替代的作用。
+
+当我们完成游戏的导出以后，打开游戏导出的文件夹，可以浏览到游戏目录（图6-2），双击“森林跳跃.exe”进行游戏启动。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\linewidth]{pic/6-2.png}
+  \caption{示例图片}
+\end{figure}
