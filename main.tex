@@ -1,66 +1,85 @@
 % ================= 文档用途说明 =================
 %{
-%   用途：本模板为安徽三联学院本科毕业论文通用模板
-%   版本：v1.2.2-comment-style (2025-05-20)
-%   注意事项：
+%   用途：本模板为安徽三联学院本科毕业论文通用模板，适用于各专业本科毕业论文撰写
+%   版本：v1.3.1-simple (2025-12-30)
+%   更新内容：
+%     1. 恢复简单的参考文献管理方式
+%     2. 简化编译流程
+%     3. 完善main.tex注释，移除其他文件注释
+%   编译说明：
 %     1. 使用XeLaTeX编译
-%     2. 封面存放于./cover目录
-%     3. 摘要存放于./abstract目录
-%     4. 不同章节分不同文件，存放于./body目录
-%     4. 致谢存放于./acknowledge目录
-%     5. 图片存放于./pic目录
-%     6. 文献引用使用thebibliography直接管理
-%     7. %需要使用转义符\%表示
+%     2. 编译命令：xelatex main.tex
+%     3. 无需多次编译，一次编译即可完成
+%   文件结构：
+%     1. 主文件：main.tex（控制整个文档结构和样式）
+%     2. 封面：./cover/cover_cyber.tex（论文封面）
+%     3. 摘要：./abstract/abstract.tex（中英文摘要）
+%     4. 正文章节：./body/目录下的.tex文件（按章节划分）
+%     5. 致谢：./acknowledge/acknowledge.tex（致谢内容）
+%     6. 图片资源：./pic/目录（存放论文中使用的图片）
+%   使用注意事项：
+%     1. 章节标题统一使用\section、\subsection等命令
+%     2. 图片插入使用\includegraphics命令，图片存放于./pic目录
+%     3. 表格使用\begin{table}环境，建议使用tabularx或array宏包增强功能
+%     4. 参考文献引用使用\upcite{数字}命令，数字对应参考文献条目编号
+%     5. 代码块使用\begin{lstlisting}环境，支持语法高亮
+%     6. 数学公式使用amsmath宏包，支持复杂数学表达式
+%     7. 注释符号%需要使用转义符\%表示
+%     8. 确保所有文件编码为UTF-8
+%   样式说明：
+%     1. 页面设置：A4纸，上下左右边距2.5cm
+%     2. 字体设置：正文宋体，标题黑体，英文Times New Roman
+%     3. 行间距：1.5倍行距
+%     4. 页码格式：目录罗马数字，正文阿拉伯数字
+%     5. 页眉页脚：正文页眉显示校名，页脚居中显示页码
 %}
+% =================================================
+
 
 \documentclass[10pt,a4paper]{ctexart}
 
 %-------------------------- 基础与中文支持包 --------------------------%
-\usepackage{iftex}
-\usepackage{xeCJK} % XeLaTeX中文环境核心支持
-\usepackage{fontspec} % 字体设置宏包
+\usepackage{iftex}                 % 条件编译支持
+\usepackage{xeCJK}                 % XeLaTeX中文环境核心支持
+\usepackage{fontspec}              % 字体设置宏包
 
 %-------------------------- 常用功能宏包 --------------------------%
-\usepackage{gbt7714} % 国标GB/T 7714参考文献样式
+\usepackage{gbt7714}               % 国标GB/T 7714参考文献样式
 \usepackage{amsmath,amsthm,amssymb,amsfonts,mathrsfs,mathtools} % AMS数学公式宏包集合
 \usepackage{graphicx,caption,float} % 图片插入、图表标题、浮动体控制
-\usepackage{geometry,fancyhdr} % 页面布局、自定义页眉页脚
-\usepackage{appendix} % 附录支持
-\usepackage{enumerate} % 增强的列表环境 (可考虑 enumitem 宏包以获得更多自定义功能)
-\usepackage{tablefootnote} % 表格内脚注支持 (若论文中无此需求，可移除)
-\usepackage{tocloft} % 目录样式深度定制
-\usepackage{setspace} % 行间距调整 (如 \linespread, \setstretch)
-\usepackage{mdframed} % 创建带边框的文本环境 (功能较 framed 更强大)
-% \usepackage{framed} % 基础边框环境，若 mdframed 已满足需求则此项可注释
-\usepackage{array} % 增强LaTeX表格和数组功能
-\usepackage{xlop} % 排版竖式数学运算 (若论文中无此需求，可移除)
-\usepackage{tabularx} % 创建可以自动调整列宽的表格
-\usepackage{xcolor} % 颜色支持 (已包含 color 宏包功能)
+\usepackage{geometry,fancyhdr}     % 页面布局、自定义页眉页脚
+\usepackage{appendix}              % 附录支持
+\usepackage{enumerate}             % 增强的列表环境（可考虑 enumitem 宏包以获得更多自定义功能）
+% \usepackage{tablefootnote}         % 表格内脚注支持（若论文中无此需求，可移除）
+\usepackage{tocloft}               % 目录样式深度定制
+\usepackage{setspace}              % 行间距调整（如 \linespread, \setstretch）
+% \usepackage{mdframed}              % 创建带边框的文本环境（功能较 framed 更强大）
+% \usepackage{framed}                % 基础边框环境，若 mdframed 已满足需求则此项可注释
+\usepackage{array}                 % 增强LaTeX表格和数组功能
+% \usepackage{xlop}                  % 排版竖式数学运算（若论文中无此需求，可移除）
+\usepackage{tabularx}              % 创建可以自动调整列宽的表格
+\usepackage{xcolor}                % 颜色支持（已包含 color 宏包功能）
 \usepackage[boxed,ruled,lined,linesnumbered]{algorithm2e} % algorithm2e算法排版宏包
-% \usepackage{algorithmic} % 旧版算法排版宏包，通常与 algorithm2e 任选其一
-\usepackage{listings,lstautogobble} % 代码块排版与自动去除前导空白
-\usepackage{makecell} % 表格单元格内文本换行和自定义格式
-\usepackage{underscore} % 正确处理文本中的下划线字符
+% \usepackage{algorithmic}           % 旧版算法排版宏包，通常与 algorithm2e 任选其一
+\usepackage{listings}              % 代码块排版
+\usepackage{lstautogobble}         % 自动去除代码块前导空白
+\usepackage{makecell}              % 表格单元格内文本换行和自定义格式
+% \usepackage{underscore}            % 正确处理文本中的下划线字符
 
 %-------------------------- 引用与链接宏包 --------------------------%
 \usepackage[colorlinks,linkcolor=black,anchorcolor=black,citecolor=black]{hyperref} % 创建文档内外的超链接，建议放在许多其他包之后加载
-\usepackage[symbol]{footmisc} % 自定义脚注标记样式 (例如使用符号)
-\usepackage{cleveref} % 智能交叉引用 (如 \cref, \Cref)
-
-%-------------------------- 基础与中文支持包 --------------------------%
-\usepackage{iftex}
-\usepackage{xeCJK} % XeLaTeX中文环境核心支持
-\usepackage{fontspec} % 字体设置宏包
+\usepackage[symbol]{footmisc}       % 自定义脚注标记样式（例如使用符号）
+\usepackage{cleveref}              % 智能交叉引用（如 \cref, \Cref）
 
 %-------------------------- 全局字体与引用样式设置 --------------------------%
-\setmainfont{Times New Roman} % 设置文档主体英文字体为 Times New Roman
-\setcitestyle{numbers,square} % 设置参考文献引用样式为带方括号的数字 (gbt7714 可能已处理)
-\newcommand{\upcite}[1]{$^{[#1]}$} % 自定义上标引用命令 \upcite{bibkey}
+\setmainfont{Times New Roman}      % 设置文档主体英文字体为 Times New Roman
+\setcitestyle{numbers,square}      % 设置参考文献引用样式为带方括号的数字（gbt7714 可能已处理）
+\newcommand{\upcite}[1]{$^{[#1]}$} % 自定义上标引用命令 \upcite{数字}，直接使用数字作为参考文献编号
 
 %----------------------------- 目录格式调整 (tocloft) --------------------------------%
-\setlength\cftbeforesecskip{4pt}      % 章标题在目录中的上方间距
-\setlength\cftbeforesubsecskip{4pt}   % 节标题在目录中的上方间距
-\setlength\cftbeforesubsubsecskip{4pt} % 小节标题在目录中的上方间距
+\setlength\cftbeforesecskip{4pt}        % 章标题在目录中的上方间距
+\setlength\cftbeforesubsecskip{4pt}     % 节标题在目录中的上方间距
+\setlength\cftbeforesubsubsecskip{4pt}  % 小节标题在目录中的上方间距
 
 \renewcommand{\cftsecleader}{\cftdotfill{0.6}}       % 章条目引导点样式
 \renewcommand{\cftsubsecleader}{\cftdotfill{0.6}}    % 节条目引导点样式
@@ -76,7 +95,7 @@
 
 \let\origcftsecpagefont\cftsecpagefont             % 保存原始页码字体设置
 \let\origcftsecafterpnum\cftsecafterpnum           % 保存原始页码后缀设置
-\renewcommand{\cftsecpagefont}{\kaishu\origcftsecpagefont} % 修改章条目页码字体为楷书 (在原有宋体基础上)
+\renewcommand{\cftsecpagefont}{\kaishu\origcftsecpagefont} % 修改章条目页码字体为楷书（在原有宋体基础上）
 \renewcommand{\cftsecafterpnum}{\origcftsecafterpnum}
 
 \renewcommand{\cftsubsecfont}{\songti \zihao{-4}}     % 节条目字体：宋体，小四
@@ -93,22 +112,22 @@
 
 %---------------------------- 代码块颜色定义 (listings) ----------------------------%
 % 这些颜色主要供 listings 包配置使用，或用于其他自定义代码片段高亮
-\definecolor{codegreen}{rgb}{0,0.6,0}       % 绿色 (可用于自定义，当前 listings 未直接使用此名称的颜色)
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}        % 灰色 (用于 listings 行号)
-\definecolor{codepurple}{rgb}{0.58,0,0.82}      % 紫色 (用于 listings 字符串)
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}    % 浅背景色 (可用于自定义代码块背景，当前 listings 未直接使用)
+\definecolor{codegreen}{rgb}{0,0.6,0}       % 绿色（可用于自定义，当前未直接使用）
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}     % 灰色 (用于 listings 行号)
+\definecolor{codepurple}{rgb}{0.58,0,0.82}   % 紫色 (用于 listings 字符串)
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92} % 浅背景色（可用于自定义代码块背景，当前未使用）
 
 %---------------------------- 代码块格式设置 (listings) ----------------------------%
-\counterwithin{figure}{section} % 图表编号与章节关联 (此行通常用于图表，与listings直接关系不大，但常放在类似配置区)
+\counterwithin{figure}{section} % 图表编号与章节关联
 \lstset{
-  commentstyle= \color{red!50!green!50!blue!50},  % 注释样式：一种混合灰色
+  commentstyle= \color{red!50!green!50!blue!50},  % 注释样式：混合灰色
   keywordstyle= \color{blue!70},                  % 关键字样式：蓝色
   numberstyle=\tiny\color{codegray},              % 行号样式：小号字体，灰色
   stringstyle=\color{codepurple},                 % 字符串样式：紫色
   basicstyle= \linespread{1.2}\ttfamily\footnotesize, % 基本样式：1.2倍行距, 等宽字体, 小五号
-  breakatwhitespace=false,                        % 是否只在空白处换行
+  breakatwhitespace=false,                        % 不只在空白处换行
   breaklines=true,                                % 自动长行打断
-  captionpos=b,                                   % 代码块标题位置 (b: 底部, t: 顶部)
+  captionpos=b,                                   % 代码块标题位置（b: 底部）
   keepspaces=true,                                % 保留代码中的空格
   numbers=left,                                   % 行号位置：左侧
   numbersep=5pt,                                  % 行号与代码的间距
@@ -126,20 +145,20 @@
 %-------------------------------- 全局行间距设置完成 -----------------------------------%
 
 %--------------------------------- 页面边距设置 (geometry) -------------------------------------%
-\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm} % 设置A4纸的上下左右页边距
-%--------------------------------- 页面边距设置完成 -------------------------------------%
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm} % 设置A4纸的上下左右页边距为2.5cm
+%--------------------------------- 页面边距设置完成 ------------------------------------%
 
 %-------------------------- 页眉页脚样式定义 (fancyhdr) -------------------------------%
 \setlength{\headheight}{15pt} % 设置页眉高度，以容纳页眉内容
 
-\fancypagestyle{plain}{ % 定义 "plain" 页面样式 (通常用于章节首页、空白页)
-  \fancyhf{} % 清空所有页眉页脚域
+\fancypagestyle{plain}{ % 定义 "plain" 页面样式（用于章节首页、空白页）
+  \fancyhf{}                   % 清空所有页眉页脚域
   \fancyfoot[C]{\zihao{5}\thepage} % 页脚居中：五号字体显示页码
   \renewcommand\headrulewidth{0pt} % 无页眉分割线
   \renewcommand\footrulewidth{0pt} % 无页脚分割线
 }
-\fancypagestyle{body}{ % 定义 "body" 页面样式 (用于正文和目录页)
-  \fancyhf{} % 清空所有页眉页脚域
+\fancypagestyle{body}{ % 定义 "body" 页面样式（用于正文和目录页）
+  \fancyhf{}                   % 清空所有页眉页脚域
   \fancyfoot[C]{\zihao{5}\thepage} % 页脚居中：五号字体显示页码
   \fancyhead{\centering\zihao{5}\textcolor{gray}{安徽三联学院毕业设计（论文）}} % 页眉居中：五号灰色校名论文名
   \renewcommand\headrulewidth{0.6pt} % 页眉分割线宽度0.6pt
@@ -173,7 +192,7 @@
 %------------------------- 图表标题与编号格式定义 (caption) --------------------------%
 \renewcommand{\thefigure}{\arabic{section}-\arabic{figure}} % 图编号格式：章节号-图序号
 \numberwithin{table}{section} % 表格编号与章节关联
-\renewcommand{\thetable}{\thesection-\arabic{table}} % 表格编号格式：章节号-表序号 (使用\thesection更稳健)
+\renewcommand{\thetable}{\thesection-\arabic{table}} % 表格编号格式：章节号-表序号（使用\thesection更稳健）
 
 \DeclareCaptionLabelSeparator{quad}{\quad} % 定义标题编号和标题文本之间的分隔符为一个\quad空格
 \captionsetup{labelsep=quad} % 应用此分隔符
@@ -192,7 +211,7 @@
 \thispagestyle{empty} % 封面页不使用任何页眉页脚
 \input{"cover/cover_cyber"} %----------- 封面页 -----------%
 
-% 摘要页，如果摘要内容排版出现问题 (如断行不佳)，可考虑在此局部使用 \sloppy 命令
+% 摘要页，如果摘要内容排版出现问题（如断行不佳），可考虑在此局部使用 \sloppy 命令
 \newpage
 \input{"abstract/abstract"} %----------- 摘要页 -----------%
 \newpage
@@ -200,12 +219,12 @@
 
 \pagestyle{body}      % 从目录开始，应用 "body" 页面样式
 \pagenumbering{Roman} % 目录部分使用大写罗马数字页码
-\setcounter{page}{1}  % 将页码计数器重置为1 (针对罗马数字部分)
+\setcounter{page}{1}  % 将页码计数器重置为1（针对罗马数字部分）
 \tableofcontents      % 生成目录
 \clearpage            % 目录结束后换页
 
 \pagenumbering{arabic} % 正文部分使用阿拉伯数字页码
-\setcounter{page}{1}   % 将页码计数器重置为1 (针对阿拉伯数字部分)
+\setcounter{page}{1}   % 将页码计数器重置为1（针对阿拉伯数字部分）
 % \pagestyle{body} % 通常在 \pagenumbering 之后会自动应用或已在目录前通过 \pagestyle{body} 设置，此行可省略
 
 % 正文各章节，如果特定章节内容排版困难，可考虑在该章节 .tex 文件内部局部使用 \sloppy
@@ -218,20 +237,16 @@
 \clearpage
 
 \addcontentsline{toc}{section}{参考文献} % 手动将“参考文献”条目添加到目录中
-\begin{thebibliography}{99} % 参考文献环境，99表示参考文献条目数目的最大位数 (例如，[1] 到 [99])
-\heiti % 设置参考文献条目整体字体为黑体 (这会影响整个环境，可能需要更细致的控制，如仅作者或标题)
-\large % 设置参考文献条目整体字体大小 (同上，可能需要更细致的控制)
+\begin{thebibliography}{99} % 参考文献环境，99表示参考文献条目数目的最大位数（例如，[1] 到 [99]）
+\heiti % 设置参考文献条目整体字体为黑体（这会影响整个环境，可能需要更细致的控制，如仅作者或标题）
+\large % 设置参考文献条目整体字体大小（同上，可能需要更细致的控制）
 \setlength{\itemsep}{1.5pt} % 调整各参考文献条目之间的垂直间距
   \bibitem[1]{ref1}苏金树, 张博锋, 徐昕. 基于机器学习的文本分类技术研究进展[J]. 软件学报, 2006, 17(009): 1848-1859.
   \bibitem[2]{ref2}裴洪, 胡昌华, 司小胜, 等. 基于机器学习的设备剩余寿命预测方法综述[J]. 机械工程学报, 2019, 55(8): 1-13.
   \bibitem[3]{ref3}付宇佳, 刘晓煌, 孙兴丽, 等. 近 30 年西北内陆荒漠资源大区土地利用驱动下生态系统碳储量时空变化[J]. 地质通报, 2024, 43(23): 451-462.
   \bibitem[4]{ref4}马驰, 张国群, 孙俊格, 等. 基于深度强化学习的综合电子系统重构方法[J]. 空天防御, 2024, 7(1): 63-70.
-  \bibitem[5]{ref5}马驰, 张国群, 孙俊格, 等. 基于深度强化学习的综合电子系统重构方法[J]. 空天防御, 2024, 7(1): 63-70.
-  \bibitem[6]{ref6}马驰, 张国群, 孙俊格, 等. 基于深度强化学习的综合电子系统重构方法[J]. 空天防御, 2024, 7(1): 63-70.
-  \bibitem[7]{ref7}马驰, 张国群, 孙俊格, 等. 基于深度强化学习的综合电子系统重构方法[J]. 空天防御, 2024, 7(1): 63-70.
-  \bibitem[8]{ref8}马驰, 张国群, 孙俊格, 等. 基于深度强化学习的综合电子系统重构方法[J]. 空天防御, 2024, 7(1): 63-70.
 \end{thebibliography}
-\normalfont % 恢复文档默认字体设置 (如果在参考文献中更改了字体)
+\normalfont % 恢复文档默认字体设置（如果在参考文献中更改了字体）
 
 % 致谢部分
 \newpage

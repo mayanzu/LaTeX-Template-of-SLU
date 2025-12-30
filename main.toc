@@ -30,4 +30,4 @@
 \contentsline {subsubsection}{\numberline {5.4.1}地图导入}{10}{subsubsection.5.4.1}%
 \contentsline {section}{\numberline {6}游戏导出与测试}{12}{section.6}%
 \contentsline {section}{参考文献}{14}{figure.caption.16}%
-\contentsline {section}{致\hskip 2em\relax 谢}{15}{section*.17}%
+\contentsline {section}{致谢}{15}{section*.17}%
