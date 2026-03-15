@@ -1,0 +1,5 @@
+# 忽略 .trae 目录及其所有内容
+.trae/
+
+# 忽略 .gitignore 本身（如果不需要版本控制）
+# .gitignore

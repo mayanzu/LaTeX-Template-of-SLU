@@ -33,7 +33,7 @@ Ambrosia Software于 2005 年 3 月发布了 Gooball。这是一款看起来远�
   \renewcommand\arraystretch{2} % 如果不加这一行表格行距会太小
   \centering
   \caption{示例表格2}
-  \setlength{\tabcolsep}{11mm}{% 设置每列宽度
+  \setlength{\tabcolsep}{11mm}{%
   \begin{tabular}{cccc}
     \hline
     \textbf{编号}&\textbf{名称}&\textbf{描述}&\textbf{数据类型}\\
@@ -43,6 +43,29 @@ Ambrosia Software于 2005 年 3 月发布了 Gooball。这是一款看起来远�
     2 & Name & 农产品产品ID & Varchar(255) \\
     \hline
   \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \renewcommand\arraystretch{1.5}
+  \centering
+  \caption{复杂表格示例}
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{\textbf{模块}} & \multirow{2}{*}{\textbf{功能}} & \multicolumn{3}{c|}{\textbf{性能指标}} \\
+    \cline{3-5}
+     & & \textbf{响应时间} & \textbf{内存使用} & \textbf{CPU占用} \\
+    \hline
+    \multirow{3}{*}{角色系统} & 动画控制 & <10ms & <5MB & <5 \\
+     & 物理碰撞 & <15ms & <8MB & <8 \\
+     & AI行为 & <20ms & <12MB & <10 \\
+    \hline
+    \multirow{2}{*}{渲染系统} & 2D渲染 & <5ms & <10MB & <3 \\
+     & 特效处理 & <25ms & <15MB & <12 \\
+    \hline
+    \multirow{2}{*}{音频系统} & 背景音乐 & <5ms & <3MB & <2 \\
+     & 音效播放 & <8ms & <4MB & <4 \\
+    \hline
+  \end{tabular}
 \end{table}
 
 \subsection{插入图片}
@@ -67,55 +90,30 @@ Ambrosia Software于 2005 年 3 月发布了 Gooball。这是一款看起来远�
 \subsubsection{插入代码}
 在角色身上创建一个新脚本，命名为“donghua.cs”，代码如下。
 
-\begin{lstlisting}[language=java]
-namespace ClearSky
-{
-    public class WizDemo1 : MonoBehaviour
-    {
-        Animator anim;
-        // 在游戏对象激活时调用，初始化动画控制器
-        void Awake()
-        {
-            anim = GetComponent<Animator>();
-        }
-        // 重置所有动画状态
-        void ResetAnimation()
-        {
-            // 将所有布尔值重置为false
-            anim.SetBool("isLookUp", false);
-            anim.SetBool("isRun", false);
-            anim.SetBool("isJump", false);
-        }
-        // 角色站立动画
-        public void Idle()
-        {
-            ResetAnimation();
-            anim.SetTrigger("idle");
-        }
-        // 角色受伤动画
-        public void Hurt()
-        {
-            ResetAnimation();
-            anim.SetTrigger("hurt");
-        }
-        // 角色死亡动画
-        public void Die()
-        {
-            ResetAnimation();
-            anim.SetTrigger("die");
-        }
-        // 角色奔跑动画
-        public void Run()
-        {
-            ResetAnimation();
-            anim.SetBool("isRun", true);
-        }
-        // 角色跳跃动画
-        public void Jump()
-        {
-            ResetAnimation();
-            anim.SetBool("isJump", true);
-        }
-    }
-}
-    \end{lstlisting}
+\begin{lstlisting}
+// 角色动画控制伪代码
+初始化动画控制器
+
+函数 重置动画状态():
+    将所有动画状态重置为默认值
+
+函数 站立动画():
+    重置动画状态
+    触发站立动画
+
+函数 受伤动画():
+    重置动画状态
+    触发受伤动画
+
+函数 死亡动画():
+    重置动画状态
+    触发死亡动画
+
+函数 奔跑动画():
+    重置动画状态
+    激活奔跑动画状态
+
+函数 跳跃动画():
+    重置动画状态
+    激活跳跃动画状态
+\end{lstlisting}
