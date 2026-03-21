@@ -71,10 +71,72 @@
 %     \end{lstlisting}
 %     language参数可选：python, java, c, cpp, matlab等
 %
-%   【表格注意点】
-%     表格可能跨页时用\begin{table}不用H强制位置
-%     表格内换行用makecell命令：\makecell{第一行\\第二行}
-%     表格宽度超过页面时用 tabularx 环境配合X参数
+%   【表格详细用法】
+%
+%     1. 最简单的三线表格式：
+%        \begin{table}[H]
+%          \centering
+%          \caption{表格标题}
+%          \begin{tabular}{ccc}
+%            \hline
+%            列1 & 列2 & 列3 \\
+%            \hline
+%            内容1 & 内容2 & 内容3 \\
+%            内容4 & 内容5 & 内容6 \\
+%            \hline
+%          \end{tabular}
+%        \end{table}
+%
+%     2. 表格参数说明：
+%        {ccc} 表示三列，都是居中对齐
+%        c = 居中，l = 左对齐，r = 右对齐
+%        |c|c|c| 加竖线表示列之间的分隔线
+%        \hline 表示横线
+%
+%     3. 带列标题的表格（使用booktabs宏包风格）：
+%        \begin{table}[H]
+%          \centering
+%          \caption{实验数据}
+%          \begin{tabular}{>{\raggedright}X >{\centering}X >{\centering}X}
+%            \hline
+%            \textbf{算法} & \textbf{准确率} & \textbf{耗时} \\
+%            \hline
+%            A*算法 & 95.2\% & 12ms \\
+%            BFS算法 & 89.1\% & 25ms \\
+%            \hline
+%          \end{tabular}
+%        \end{table}
+%
+%     4. 表格宽度自动适应页面（tabularx环境）：
+%        \begin{table}[H]
+%          \centering
+%          \caption{自适应宽度表格}
+%          \begin{tabularx}{\linewidth}{>{\raggedright}X >{\centering}X >{\centering}X}
+%            \hline
+%            \textbf{列1} & \textbf{列2} & \textbf{列3} \\
+%            \hline
+%            自动拉伸 & 自动拉伸 & 自动拉伸 \\
+%            \hline
+%          \end{tabularx}
+%        \end{table}
+%        注意：需要 \usepackage{tabularx} 宏包
+%        X参数使该列自动扩展填满表格宽度
+%
+%     5. 单元格内换行（makecell命令）：
+%        \makecell{第一行内容\\第二行内容}
+%        需要 \usepackage{makecell}
+%
+%     6. 常见问题：
+%        - 表格超出页面：减小width值或用 tabularx 的X参数
+%        - 单元格内容偏上/偏下：用 >{\centering\arraybackslash}m{宽度} 代替 c
+%        - 需要跨列：用 \multicolum{3}{c}{内容}
+%        - 需要跨行：用 \multirow{2}{宽度}{内容}
+%
+%     7. 本模板已配置的表格相关宏包：
+%        - array     提供列对齐参数 >{...}
+%        - tabularx  提供 X 参数自动列宽
+%        - makecell  提供 \makecell 单元格内换行
+%        - booktabs  提供 \toprule \midrule \bottomrule 美观横线
 %
 %   【数学公式注意点】
 %     行内公式用 $...$ 或 \(...\)
