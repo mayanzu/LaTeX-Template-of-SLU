@@ -1,155 +1,277 @@
-\hspace*{\fill}
+\hspace*{\fill} %标题前空两行
 
-\section{系统测试与结果分析}
+\section{A*寻路算法设计与优化}
 
-软件测试这东西，说起来都知道重要，做起来才发现有多烦。特别是游戏这种交互性强的程序，很多bug在特定时序下才会触发，单元测试能覆盖的场景有限。这一章从单元测试、功能测试和性能测试三个维度来检验系统。
+A*算法是本系统的核心决策引擎。蛇的每一帧移动都需要调用一次路径规划，这意味着算法不仅要找到路径，还得在毫秒级时间内完成。本章从问题建模出发，逐层展开A*算法的设计细节、启发式函数的权衡、动态障碍物的处理策略，以及算法失效时的兜底机制。
 
-\subsection{测试环境}
+\subsection{问题建模}
 
-测试在两台机器上进行，配置如下：
+贪吃蛇的寻路问题可以自然地映射为网格图上的最短路径搜索问题\upcite{1}。将游戏区域抽象为一个有向图$G=(V,E)$，其中顶点集$V$对应每个可达的网格格子$(x,y)$，其中$0 \le x < W$，$0 \le y < H$，$W$和$H$分别为网格的宽度和高度。边集$E$则表示格子之间的邻接关系——若两个格子$(x_1,y_1)$和$(x_2,y_2)$在四邻域意义下相邻（即$|x_1-x_2|+|y_1-y_2|=1$），则在两者之间存在一条无向边，且每条边的权重均为1。
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{测试环境}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-    \hline
-    \textbf{项目}&\textbf{设备A}&\textbf{设备B}\\
-    \hline
-    CPU & Intel i7-12700H & Intel i5-10400 \\
-    内存 & 16GB DDR5 & 8GB DDR4 \\
-    系统 & Windows 11 & Ubuntu 22.04 \\
-    Python & 3.11.5 & 3.10.12 \\
-    Pygame & 2.5.2 & 2.5.2 \\
-    \hline
-  \end{tabularx}
-\end{table}
+这个建模方式有两个值得注意的点。其一，图的拓扑结构在运行时是动态变化的——蛇身在不断移动，障碍物集合每帧都在更新。其二，边权均为1，这意味着Dijkstra算法在理论上也可行，但缺少启发信息的引导，搜索效率会显著下降\upcite{7}。
 
-\subsection{单元测试设计与执行}
+在上述建模下，寻路目标是：给定蛇头位置$s$和食物位置$g$，在图$G$中寻找一条从$s$到$g$的最短路径，且路径上的所有顶点均不属于当前的障碍物集合。
 
-单元测试用Python自带的\texttt{unittest}框架编写，共22个测试用例，覆盖四个核心类。测试分类如下：
+% TODO: 插入图4-1 网格图抽象示意图
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{单元测试用例分类}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\raggedright\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{测试类}&\textbf{测试数量}&\textbf{覆盖内容}&\textbf{全部通过}\\
-    \hline
-    TestSnake & 4 & 初始化、移动、增长、反向禁止 & 是 \\
-    TestAStar & 6 & 直线路径、障碍绕行、无路径、同起点终点、可达空间 & 是 \\
-    TestSmartDecisionMaker & 4 & 最近食物查找、方向转换、安全移动、综合决策 & 是 \\
-    TestGame & 8 & 初始化、三种碰撞、食物碰撞、暂停、重置 & 是 \\
-    \hline
-    \textbf{合计} & \textbf{22} & & \textbf{是} \\
-    \hline
-  \end{tabularx}
-\end{table}
+\subsection{A*算法基本实现}
 
-测试过程中发现了一个容易遗漏的边界情况：\texttt{test\_food\_collision}需要验证的是，吃食物后\texttt{grow\_pending}增加、下一次\texttt{move()}后蛇身才实际增长。最初的测试版本直接断言body长度不变，结果发现\texttt{grow()}调用后body确实没变（因为用了pending机制），但逻辑上容易误解。后来改为同时检查\texttt{grow\_pending}和下一次移动后的长度，测试意图才清晰。
+A*算法由Hart等人于1968年提出\upcite{1}，是一种结合了Dijkstra算法的最优性保证和贪婪最佳优先搜索效率的启发式搜索算法\upcite{2}。其核心评估函数为：
 
-测试执行结果如下：
+\begin{equation}
+f(n) = g(n) + h(n)
+\end{equation}
 
-\begin{lstlisting}[language={},caption={单元测试执行输出}]
-..............
-----------------------------------------------------------------------
-Ran 22 tests in 0.002s
+其中$g(n)$是从起点到节点$n$的实际代价，$h(n)$是从$n$到目标的启发式估计代价。在Python实现中，我们设计了\texttt{Node}类来封装节点信息：
 
-OK
+\begin{lstlisting}[language=python,caption={Node类定义（pathfinder.py）}]
+class Node:
+    __slots__ = ('position', 'g', 'h', 'f', 'parent')
+
+    def __init__(self, position: Tuple[int, int], g: int = 0,
+                 h: int = 0, parent: 'Optional[Node]' = None):
+        self.position = position
+        self.g = g
+        self.h = h
+        self.f = g + h
+        self.parent = parent
+
+    def __lt__(self, other: 'Node') -> bool:
+        return self.f < other.f
 \end{lstlisting}
 
-22个用例全部通过，总耗时2ms。这个速度是因为没有涉及渲染和IO，纯逻辑计算。
+使用\texttt{\_\_slots\_\_}声明固定属性集合是一个有意为之的工程选择。在40$\times$30的网格上，一次A*搜索可能创建数百到上千个\texttt{Node}对象，\texttt{\_\_slots\_\_}可以避免每个实例都维护一个\texttt{\_\_dict\_\_}，在内存开销上有约40\%的节省\upcite{13}。同时，\texttt{\_\_lt\_\_}方法使得\texttt{Node}对象可以直接被\texttt{heapq}模块使用，无需额外的比较键。
 
-\subsection{功能测试}
+算法的主体逻辑在\texttt{AStar.find\_path}方法中实现：
 
-功能测试通过实际运行游戏进行，验证各模块协同工作是否正确。游戏启动时应验证窗口尺寸为1200$\times$600、标题正确显示、蛇初始位置居中、障碍物和食物正确生成。自动模式运行时，蛇能够自主寻找食物并成功进食，分数正确累加，蛇身正确增长。手动模式切换通过按\texttt{M}键实现，切换后方向键控制蛇移动，A*路径预览消失。暂停与恢复功能由空格键控制，暂停时游戏状态冻结，恢复后蛇继续移动。重新开始功能按\texttt{R}键触发，分数清零、蛇身重置、障碍物重新生成。当蛇撞墙或撞障碍物后触发游戏结束，显示"游戏结束"遮罩和最终分数。A*可视化面板在右侧区域实时显示搜索过程，其中绿色表示起点、红色表示终点、蓝色表示已探索节点、橙色表示待探索节点、黄色表示路径。
+\begin{lstlisting}[language=python,caption={A*核心搜索逻辑（pathfinder.py）}]
+def find_path(self, start, goal):
+    if start == goal:
+        return [start]
 
-图6-1展示了AI自动模式下的游戏运行界面。左侧为游戏区域，蛇身以绿色方块表示（蛇头颜色更亮），红色圆形为食物，灰色方块为随机生成的障碍物，蓝色线条为A*算法计算出的预估路径。右侧为A*算法可视化面板，实时展示搜索过程中的开放列表和关闭列表状态。
+    open_set = []
+    closed_set = set()
+    start_node = Node(start, 0, self.heuristic(start, goal))
+    heapq.heappush(open_set, start_node)
+    position_to_node = {start: start_node}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_autoplay.png}
-  \caption{AI自动模式运行界面（含A*可视化）}
-\end{figure}
+    while open_set:
+        current = heapq.heappop(open_set)
 
-图6-2展示了手动模式下的游戏界面。切换到手动模式后，A*路径预览和右侧可视化面板均不再显示，玩家通过方向键控制蛇的移动。
+        if current.position == goal:
+            path = self.reconstruct_path(current)
+            return path
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_manual.png}
-  \caption{手动模式运行界面}
-\end{figure}
+        closed_set.add(current.position)
 
-图6-3展示了游戏结束时的界面。当蛇撞墙或撞到自身后，屏幕中央显示半透明遮罩层，提示"游戏结束"和最终得分。
+        for dx, dy in self.DIRECTIONS:
+            neighbor_pos = (current.position[0] + dx,
+                          current.position[1] + dy)
+            if neighbor_pos in closed_set or \
+               not self.is_valid(neighbor_pos):
+                continue
+            new_g = current.g + 1
+            if neighbor_pos in position_to_node:
+                neighbor_node = position_to_node[neighbor_pos]
+                if new_g < neighbor_node.g:
+                    neighbor_node.g = new_g
+                    neighbor_node.f = new_g + neighbor_node.h
+                    neighbor_node.parent = current
+                    heapq.heapify(open_set)
+            else:
+                h = self.heuristic(neighbor_pos, goal)
+                neighbor_node = Node(neighbor_pos, new_g, h,
+                                   current)
+                heapq.heappush(open_set, neighbor_node)
+                position_to_node[neighbor_pos] = neighbor_node
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_gameover.png}
-  \caption{游戏结束界面}
-\end{figure}
+    return None
+\end{lstlisting}
 
-\subsection{性能测试}
+有个容易被忽略的细节：代码使用了\texttt{position\_to\_node}字典来实现$O(1)$的节点查找，避免了在\texttt{open\_set}中线性搜索节点。这是典型的空间换时间策略。另外，当发现更优路径时，代码调用\texttt{heapq.heapify(open\_set)}来重建堆，而不是直接弹出旧节点再插入新节点。前者的时间复杂度为$O(n)$，后者为$O(\log n)$，但堆化方式避免了重复节点在堆中积累的问题——在Python的\texttt{heapq}不支持Decrease-Key操作的约束下，这是个务实的折中\upcite{10}。
 
-性能测试主要关注两个指标：A*搜索的节点扩展数量和路径长度。测试方法是在不同障碍物密度下，固定起点和终点，记录搜索过程。
+路径回溯通过\texttt{reconstruct\_path}方法完成，从终点沿着\texttt{parent}指针反向追踪至起点，然后反转列表得到正序路径。
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同障碍物密度下的A*搜索性能}
-  \begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{障碍物密度}&\textbf{搜索节点数}&\textbf{路径长度}&\textbf{耗时(ms)}&\textbf{内存峰值(MB)}\\
-    \hline
-    10\% & 45 & 12 & 0.12 & 2.1 \\
-    20\% & 89 & 15 & 0.28 & 2.3 \\
-    30\% & 156 & 21 & 0.45 & 2.8 \\
-    40\% & 234 & 28 & 0.68 & 3.5 \\
-    50\% & 312 & 35 & 0.92 & 4.2 \\
-    \hline
-  \end{tabularx}
-\end{table}
+\subsection{启发式函数的选取与分析}
 
-数据反映出一个明显的趋势：障碍物密度每增加10\%，搜索节点数大约翻倍，但耗时增长相对温和，因为每个节点的操作是常数时间。内存峰值的上升来自open set和closed set的膨胀——高密度下A*需要探索更多"死胡同"才能找到可行路径。
+启发式函数$h(n)$的选取直接决定了A*算法的搜索效率和最优性\upcite{3}。在二维网格上，常见的启发式函数有三种\upcite{9}：
 
-还有个不太好的发现：当障碍物密度超过50\%时，A*经常在搜索了大量节点后仍然失败，因为目标被障碍物完全围住。这时候退化到BFS兜底，BFS也找不到就只能靠安全评估函数随机选一个方向。这种"尽力而为"的策略在高密度下存活率骤降。
+曼哈顿距离：$h(n)=|x_1-x_2|+|y_1-y_2|$，适用于只能沿网格方向移动的场景。
 
-\subsection{AI策略对比测试}
+欧几里得距离：$h(n)=\sqrt{(x_1-x_2)^2+(y_1-y_2)^2}$，适用于允许对角线移动的场景。
 
-为了验证A*+安全评估这个组合策略的效果，和几种基准策略做了对比。每种策略跑100局，取平均值。
+切比雪夫距离：$h(n)=\max(|x_1-x_2|,|y_1-y_2|)$，适用于八方向移动（对角线代价为1）的场景。
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同AI策略的存活率与得分对比}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{策略}&\textbf{存活率(\%)}&\textbf{平均得分}&\textbf{最高得分}&\textbf{平均蛇长}\\
-    \hline
-    随机移动 & 12 & 45 & 120 & 7 \\
-    纯BFS & 45 & 180 & 450 & 20 \\
-    纯A* & 67 & 350 & 800 & 37 \\
-    A* + 安全评估 & 89 & 520 & 1250 & 54 \\
-    \hline
-  \end{tabularx}
-\end{table}
+三者的关系是：$h_{Manhattan} \ge h_{Chebyshev} \ge h_{Euclidean}$。在A*算法中，启发式函数必须是可采纳的（admissible），即不能高估实际代价\upcite{1}。曼哈顿距离在四邻域网格上恰好等于实际最短距离，因此是可采纳的。
 
-结果在意料之中，但也暴露了一些问题。纯A*的67\%存活率看着还行，但仔细分析失败的33\%案例，绝大多数是因为A*找到的路径把蛇引向了死角——路径确实最短，但走到尽头后蛇被自己围住，无路可退。
+选曼哈顿距离而非欧几里得距离，还有一个实际的性能原因：\texttt{abs()}运算比\texttt{sqrt()}快得多。在贪吃蛇这种每帧都要调用寻路的场景下，这个差异会被放大。代码中的实现非常简洁：
 
-加上安全评估后存活率提升到89\%，但代价是平均路径变长了——安全评估倾向于选择"空间大"的方向而非"距离近"的方向，这在食物争夺效率上有所牺牲。有几局里蛇在地图边缘绕了很大一圈才找到食物，玩家如果看到会觉得很蠢。
+\begin{lstlisting}[language=python,caption={启发式函数实现（pathfinder.py）}]
+def heuristic(self, pos1, pos2):
+    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+\end{lstlisting}
 
-最高得分1250对应的蛇长是127格，在40$\times$30的网格里占了约10\%的空间。再长下去食物生成就经常失败，进入"吃满地图"的终局阶段。
+曼哈顿距离也有局限性。当网格上障碍物密集分布时，曼哈顿距离给出的估计会过于乐观，导致A*的搜索范围接近Dijkstra。在这种情况下，加权A*（Weighted A*）通过引入权重因子$\epsilon$来提高$h(n)$的权重，可以减少搜索节点数，但代价是牺牲了路径最优性的严格保证\upcite{5}。本系统中，由于$HEURISTIC\_WEIGHT = 1.0$（见config.py），我们选择了严格最优路径而非搜索速度。
 
-图6-4直观展示了四种策略的存活率和得分对比。可以看到安全评估函数的引入将存活率从67\%提升到了89\%，但最高得分的提升幅度更大（从800到1250），因为安全策略让蛇活得更久，从而有更多机会进食。
+% TODO: 插入图4-2 三种启发式函数对比示意图
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\linewidth]{pic/strategy_comparison.png}
-  \caption{不同AI策略存活率与得分对比}
-\end{figure}
+\subsection{动态障碍物处理}
 
-\subsection{测试总结}
+与静态地图不同，贪吃蛇的蛇身是一个动态变化的障碍物集合。蛇每移动一步，头部增加一个格子、尾部移除一个格子（除非刚吃食物）。这给寻路带来了几个棘手的问题。
 
-测试覆盖了从单元级别到系统级别的验证。22个单元测试用例全部通过，功能测试验证了各模块的协同正确性。性能测试揭示了A*算法在高障碍物密度下的退化问题，策略对比则证明了安全评估函数对存活率的关键贡献。
+\subsubsection{蛇身障碍物建模}
 
-坦率地说，测试做得还不够充分。压力测试（比如极端网格尺寸、超高帧率）没做，跨平台兼容性只在两台机器上跑过，交互测试也只覆盖了主要路径。如果要作为正式产品发布，这些都得补上。
+在\texttt{SmartDecisionMaker.decide\_next\_move}中，障碍物的构建逻辑为：
+
+\begin{lstlisting}[language=python,caption={障碍物集合构建（decision.py）}]
+body_minus_tail = set(snake.body[:-1]) \
+    if len(snake.body) > 1 else set()
+all_obstacles = obstacles.union(body_minus_tail)
+self.update_obstacles(all_obstacles)
+\end{lstlisting}
+
+关键决策在于：蛇身除了尾巴之外的所有部分都被视为障碍物，而尾巴位置不纳入障碍集合。这样处理的依据是，当蛇头移动到某位置时，蛇尾也会同步前进一步，尾巴原来的位置就会空出来。如果把尾巴也当作障碍物，蛇会错失一些合法的路径。
+
+这个策略有个隐含的风险——它假设蛇头到达尾巴位置时尾巴一定会移动。如果蛇刚吃了食物（\texttt{grow\_pending > 0}），尾巴不会前移，此时"尾巴位置不阻挡"的假设就失效了。本系统中，碰撞检测函数\texttt{\_check\_collision}在每一步都会重新验证头部位置是否与身体冲突，因此即使寻路阶段做出了乐观假设，实际移动时仍会被拦截。这是"规划时乐观、执行时保守"的双层校验策略。
+
+\subsubsection{路径重计算策略}
+
+由于障碍物每帧变化，上一帧计算的路径到下一帧可能已经不可行。本系统采用"每帧重新规划"的策略而非路径跟随验证。前者虽然计算开销更大，但在障碍物高度动态变化的贪吃蛇场景中，后者往往会因为路径失效检测和重新规划的延迟导致游戏失败。这是计算开销与决策鲁棒性之间的典型矛盾\upcite{14}。
+
+\subsection{A*失效时的BFS兜底策略}
+
+A*算法并不是万能的。当食物被蛇身完全包围、起点和目标之间不存在路径时，A*会遍历所有可达节点后返回\texttt{None}。更微妙的是，某些情况下A*找不到路径，但BFS可以——这是因为\texttt{find\_path}中对\texttt{obstacles}的判断发生在邻居节点生成时，而\texttt{obstacles}在A*和BFS中可能包含略有不同的集合。
+
+系统设计了分层的降级策略。当A*无法找到通往食物的路径时，\texttt{SmartDecisionMaker}会依次尝试以下方案：
+
+\begin{lstlisting}[language=python,caption={多级降级策略（decision.py）}]
+path = self.pathfinder.find_path(head, target_food)
+
+if path and len(path) > 1:
+    self.current_path = path[1:]
+    next_pos = path[1]
+    return self._position_to_direction(head, next_pos)
+else:
+    # A* 失败时，尝试 BFS 找任意通往食物的路径
+    bfs_direction = self._get_bfs_direction(
+        head, target_food, all_obstacles)
+    if bfs_direction:
+        return bfs_direction
+    # BFS 也找不到，才用安全预测
+    return self._get_safe_move_with_prediction(
+        head, safe_obstacles, snake, target_food)
+\end{lstlisting}
+
+第一级，A*搜索最短路径。第二级，BFS搜索任意路径——BFS同样能保证找到最短路径（在等权图上），但它不使用启发式函数，搜索顺序完全由队列FIFO决定，在某些特殊的障碍物配置下可能与A*的剪枝行为产生差异。实际上，这一级BFS更多是作为健壮性冗余设计，确保在A*的\texttt{is\_valid}判断边界条件下不会遗漏可行路径。第三级，安全评估函数——当食物确实不可达时，蛇应该选择一条"能活得更久"的路径，而非走向死胡同。
+
+BFS的实现较为标准：
+
+\begin{lstlisting}[language=python,caption={BFS兜底搜索（decision.py）}]
+def _get_bfs_direction(self, head, target, obstacles):
+    from collections import deque
+    queue = deque([(head, [])])
+    visited = {head}
+    while queue:
+        pos, path = queue.popleft()
+        if pos == target:
+            if path:
+                return self._position_to_direction(head, path[0])
+            return None
+        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            new_pos = (pos[0] + dx, pos[1] + dy)
+            if new_pos not in visited and new_pos not in obstacles:
+                visited.add(new_pos)
+                queue.append((new_pos, path + [new_pos]))
+    return None
+\end{lstlisting}
+
+BFS中路径的存储采用了"每步追加"的方式（\texttt{path + [new\_pos]}），这会创建新的列表对象，在路径较长时有一定的内存开销。更高效的方案是使用字典记录前驱节点，但考虑到BFS仅在A*失效时才被调用（频率较低），当前的实现可接受。
+
+\subsection{安全评估函数设计}
+
+当蛇无法到达食物时，系统需要一种策略让蛇"活着"——即尽可能长时间地避免碰撞。安全评估函数正是为此设计的，它从三个维度对候选移动进行打分。
+
+\begin{lstlisting}[language=python,caption={安全评估函数（decision.py）}]
+def _evaluate_move(self, pos, obstacles, snake,
+                   target_food=None):
+    score = 0
+    # 1. 可达空间评估
+    accessible_space = self.pathfinder.count_accessible_space(
+        pos, obstacles, 10)
+    score += accessible_space * 10
+
+    # 2. 边缘惩罚
+    margin = 3
+    distance_to_edge = min(pos[0], pos[1],
+                          GRID_WIDTH - pos[0] - 1,
+                          GRID_HEIGHT - pos[1] - 1)
+    if distance_to_edge < margin:
+        score -= (margin - distance_to_edge) * 20
+
+    # 3. 邻居数评估
+    valid_neighbors = 0
+    for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+        neighbor = (pos[0] + dx, pos[1] + dy)
+        if neighbor not in obstacles:
+            valid_neighbors += 1
+    score += valid_neighbors * 5
+
+    # 4. 朝向食物奖励
+    if target_food:
+        head = snake.head
+        current_dist = abs(head[0] - target_food[0]) \
+                      + abs(head[1] - target_food[1])
+        new_dist = abs(pos[0] - target_food[0]) \
+                  + abs(pos[1] - target_food[1])
+        if new_dist < current_dist:
+            score += 50
+    return score
+\end{lstlisting}
+
+第一个维度是可达空间计算。通过\texttt{count\_accessible\_space}方法，以候选位置为起点进行BFS搜索，统计\texttt{max\_depth=10}步内可达的格子数。这个值越大，说明从该位置出发有越多的"逃生路线"。搜索深度限制在10层是为了控制计算量——全网格BFS的时间复杂度为$O(W \times H)$，在40$\times$30的网格上就是1200次节点扩展，对每帧4个候选方向都要计算一次，总开销约4800次扩展，仍在可接受范围内。
+
+第二个维度是边缘惩罚。靠近墙壁的位置往往意味着选择面减少，一旦被逼入角落就很难脱身。当与边缘的距离小于\texttt{margin=3}时，惩罚力度随距离递减。权重20的选择经过反复调试：太小则蛇仍会冒险贴边移动，太大则蛇会过度保守地远离边缘，浪费可利用空间。
+
+第三个维度是邻居数评估。直接统计候选位置四周有多少个非障碍邻居。这个指标比可达空间粗糙得多（只看一步），但计算极其廉价，适合作为辅助参考。
+
+最后附加了朝向食物的奖励加成。即便食物不可达，蛇也应该尽量靠近食物方向——因为当蛇身收缩、食物变为可达时，更近的距离意味着更短的响应时间。奖励值50的设计意图是：在可达空间和邻居数相近的两个候选位置中，靠近食物的那个应该被优先选择。
+
+这些参数（10、3、20、5、50）的取值并非来自理论推导，而是基于大量游戏试玩的经验调参。不同参数组合下的蛇的行为模式差异显著，这也是游戏AI开发中的常见现象\upcite{15}。
+
+% TODO: 插入图4-3 安全评估函数参数敏感性分析
+
+\subsection{算法可视化实现}
+
+调试AI行为是游戏开发中的难点之一。蛇为什么在某个时刻走向了死路？A*到底搜索了多大的范围？这些问题在纯文本日志中很难诊断。为此，系统在游戏窗口右侧设计了一个A*算法可视化面板。
+
+可视化数据的收集嵌入在\texttt{find\_path}方法中。每一步搜索迭代，都会将当前的开放列表、关闭列表和搜索状态记录下来：
+
+\begin{lstlisting}[language=python,caption={搜索过程记录（pathfinder.py）}]
+self.open_set_history.append(
+    [n.position for n in open_set])
+self.closed_set_history.append(set(closed_set))
+self.search_steps.append({
+    'step': step,
+    'current': current.position,
+    'open_size': len(open_set),
+    'closed_size': len(closed_set)
+})
+\end{lstlisting}
+
+\texttt{Renderer.draw\_astar\_visualization}方法负责将这些数据渲染到右侧面板。面板中使用缩小的网格来展示完整的搜索过程：灰色表示静态障碍物，蓝色表示已探索节点（closed set），橙色表示待探索节点（open set），黄色表示最终路径，绿色和红色分别标记起点和终点。这种可视化方式可以直接看出A*的搜索方向偏向、障碍物对搜索范围的约束效果，以及路径是否经过了狭窄通道。
+
+% TODO: 插入图4-4 A*算法可视化面板截图
+
+可视化数据的更新频率通过\texttt{ASTAR\_UPDATE\_INTERVAL=500ms}控制。这是因为每帧都重新运行一次A*来更新可视化会消耗大量计算资源（A*的搜索本身已经够贵了），500ms的间隔在视觉连续性和性能开销之间取得了平衡。
+
+不过，可视化数据的收集本身也增加了\texttt{find\_path}的执行时间。记录\texttt{open\_set\_history}涉及列表的深拷贝，在搜索节点数较多时会拖慢整体性能。在生产环境中，这些可视化代码应该被条件编译或完全移除。
+
+\subsection{本章小结}
+
+本章围绕A*寻路算法的设计与优化展开了详细讨论。在问题建模层面，将贪吃蛇寻路抽象为四邻域网格图上的最短路径搜索问题，边权为1。在算法实现层面，使用Python的\texttt{heapq}实现了A*搜索，并通过\texttt{\_\_slots\_\_}优化了节点的内存开销，通过\texttt{position\_to\_node}字典实现了$O(1)$的节点查找。
+
+启发式函数选择曼哈顿距离，其在四邻域网格上具有可采纳性和一致性，且计算开销极低。动态障碍物处理采用"尾巴不阻挡"的乐观假设，配合碰撞检测的执行期验证，形成规划-执行双层校验机制。A*失效时设计了BFS兜底和安全评估函数两级降级策略，确保蛇在任何情况下都能做出"不立即死亡"的决策。
+
+安全评估函数综合考虑了可达空间、边缘距离、邻居数和食物方向四个维度，这些特征的权重经过经验调参确定。A*可视化面板为算法行为的调试和优化提供了直观的工具支持。
+
+整体而言，本章的算法设计在最优性、实时性和鲁棒性之间做了多处工程化的权衡。纯A*保证了正常情况下的最短路径，BFS提供了算法失效时的冗余保障，安全评估函数则为"无路可走"时提供了生存策略。代价是代码复杂度和运行时开销的增加，以及大量需要经验调参的权重系数。
