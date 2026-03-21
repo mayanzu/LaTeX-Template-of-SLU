@@ -2,14 +2,41 @@
 %{
 %   用途：基于A*算法的智能贪吃蛇游戏设计与实现 - 本科毕业论文
 %   版本：v1.0 (2026-03-21)
+%   编译方式：XeLaTeX
+%
+%   目录结构：
+%     ./cover/        - 封面
+%     ./abstract/     - 摘要
+%     ./body/         - 章节正文 (1.tex ~ 7.tex)
+%     ./acknowledge/  - 致谢
+%     ./pic/          - 图片
+%
 %   注意事项：
-%     1. 使用XeLaTeX编译
-%     2. 封面存放于./cover目录
-%     3. 摘要存放于./abstract目录
-%     4. 不同章节分不同文件，存放于./body目录
-%     5. 致谢存放于./acknowledge目录
-%     6. 图片存放于./pic目录
-%     7. 文献引用使用thebibliography直接管理
+%     1. 文献引用使用thebibliography直接管理
+%     2. 图片路径使用相对路径，如 ./pic/xxx.png
+%
+%   常见转义字符：
+%     \#  - 生成井号 #
+%     \$  - 生成美元符号 $
+%     \%  - 生成百分号 %
+%     \&  - 生成连字符 &
+%     \_  - 生成下划线 _
+%     \{  - 生成左花括号 {
+%     \}  - 生成右花括号 }
+%     \S  - 生成章节号 §
+%     \P  - 生成段落号 ¶
+%     \dag - 生成剑号 †
+%     \ddag - 生成双剑号 ‡
+%     \textless - 生成小于号 <
+%     \textgreater - 生成大于号 >
+%     \verb|\%| - 在verb环境中输出保留原始%字符
+%
+%   特殊符号（需要导入amssymb宏包）：
+%     \checkmark - √
+%     \star - ★
+%     \diamond - ◆
+%     \blacksquare - ■
+%     \triangle - △
 %}
 
 \documentclass[10pt,a4paper]{ctexart}
