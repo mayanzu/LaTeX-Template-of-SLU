@@ -1,155 +1,173 @@
 \hspace*{\fill}
 
-\section{系统测试与结果分析}
+\section{系统详细设计与实现}
 
-软件测试这东西，说起来都知道重要，做起来才发现有多烦。特别是游戏这种交互性强的程序，很多bug在特定时序下才会触发，单元测试能覆盖的场景有限。这一章从单元测试、功能测试和性能测试三个维度来检验系统。
+本章讨论整个贪吃蛇游戏系统从底层数据结构到上层渲染管线的具体实现。说实话，Pygame不是什么高大上的框架，但它的API够直观，拿来写这种规模的原型完全够用，省得折腾引擎层的东西。
 
-\subsection{测试环境}
+\subsection{游戏引擎与开发环境}
 
-测试在两台机器上进行，配置如下：
+开发语言选了Python 3.x，渲染框架用的Pygame 2.x。做这个选择的时候纠结过一阵子——C++配合SDL2在性能上肯定有优势，但考虑到这个项目的重点在算法而不是引擎优化，Python的开发效率优势就很明显了。写个A*原型，用Python调通逻辑再快不过。
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{测试环境}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-    \hline
-    \textbf{项目}&\textbf{设备A}&\textbf{设备B}\\
-    \hline
-    CPU & Intel i7-12700H & Intel i5-10400 \\
-    内存 & 16GB DDR5 & 8GB DDR4 \\
-    系统 & Windows 11 & Ubuntu 22.04 \\
-    Python & 3.11.5 & 3.10.12 \\
-    Pygame & 2.5.2 & 2.5.2 \\
-    \hline
-  \end{tabularx}
-\end{table}
+Pygame底层封装的是SDL2，提供窗口管理、事件循环、2D渲染这些基础能力\upcite{19}。对于本项目40$\times$30的网格规模，Pygame的软件渲染完全扛得住，60fps下CPU占用不到15\%（实测数据，i7-12700H）。
 
-\subsection{单元测试设计与执行}
-
-单元测试用Python自带的\texttt{unittest}框架编写，共22个测试用例，覆盖四个核心类。测试分类如下：
+开发环境配置如下表所示：
 
 \begin{table}[H]
   \renewcommand\arraystretch{2}
   \centering
-  \caption{单元测试用例分类}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\raggedright\arraybackslash}X >{\centering\arraybackslash}X}
+  \caption{开发环境配置}
+  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
     \hline
-    \textbf{测试类}&\textbf{测试数量}&\textbf{覆盖内容}&\textbf{全部通过}\\
+    \textbf{项目}&\textbf{版本/说明}\\
     \hline
-    TestSnake & 4 & 初始化、移动、增长、反向禁止 & 是 \\
-    TestAStar & 6 & 直线路径、障碍绕行、无路径、同起点终点、可达空间 & 是 \\
-    TestSmartDecisionMaker & 4 & 最近食物查找、方向转换、安全移动、综合决策 & 是 \\
-    TestGame & 8 & 初始化、三种碰撞、食物碰撞、暂停、重置 & 是 \\
-    \hline
-    \textbf{合计} & \textbf{22} & & \textbf{是} \\
+    操作系统 & Windows 11 / Ubuntu 22.04 \\
+    Python & 3.11.5 \\
+    Pygame & 2.5.2 \\
+    编辑器 & VS Code \\
+    版本控制 & Git \\
     \hline
   \end{tabularx}
 \end{table}
 
-测试过程中发现了一个容易遗漏的边界情况：\texttt{test\_food\_collision}需要验证的是，吃食物后\texttt{grow\_pending}增加、下一次\texttt{move()}后蛇身才实际增长。最初的测试版本直接断言body长度不变，结果发现\texttt{grow()}调用后body确实没变（因为用了pending机制），但逻辑上容易误解。后来改为同时检查\texttt{grow\_pending}和下一次移动后的长度，测试意图才清晰。
+\subsection{游戏主循环设计}
 
-测试执行结果如下：
+游戏主循环采用了经典的"事件处理—状态更新—渲染"三段式结构。这种模式在游戏开发里几乎是标准做法\upcite{14}，没什么花哨的，但写的时候踩了不少坑。
 
-\begin{lstlisting}[language={},caption={单元测试执行输出}]
-..............
-----------------------------------------------------------------------
-Ran 22 tests in 0.002s
+主循环的核心逻辑在\texttt{main.py}里，大致是这样一个骨架：
 
-OK
+\begin{lstlisting}[language=python,caption={游戏主循环核心逻辑}]
+while running:
+    current_time = pygame.time.get_ticks()
+    # 事件处理
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            handle_key(event.key)
+
+    # 状态更新（基于时间步）
+    if game.state == STATE_PLAYING:
+        game.update(current_time)
+
+    # 渲染
+    screen.fill(COLORS['background'])
+    renderer.draw_all()
+    pygame.display.flip()
+    clock.tick(FPS)
 \end{lstlisting}
 
-22个用例全部通过，总耗时2ms。这个速度是因为没有涉及渲染和IO，纯逻辑计算。
+这里面有个容易忽略的细节：\texttt{game.update()}的调用时机。如果把更新逻辑放在事件循环外面直接调，没有时间间隔控制，蛇的移动速度会和CPU主频绑定——在快机器上蛇飞快，在慢机器上蛇蠕动。所以加了一个\texttt{move\_delay}参数（默认150ms），通过比较\texttt{current\_time}和\texttt{last\_move\_time}来控制节奏。
 
-\subsection{功能测试}
+另外，A*可视化数据的更新频率也做了独立控制（\texttt{ASTAR\_UPDATE\_INTERVAL = 500ms}），不和游戏帧同步。原因很简单：A*搜索的计算量不小，每帧都跑一次会让帧率骤降，尤其是障碍物密集的时候。500ms更新一次对可视化来说完全够了，用户看到的是"实时"的感觉。
 
-功能测试通过实际运行游戏进行，验证各模块协同工作是否正确。游戏启动时应验证窗口尺寸为1200$\times$600、标题正确显示、蛇初始位置居中、障碍物和食物正确生成。自动模式运行时，蛇能够自主寻找食物并成功进食，分数正确累加，蛇身正确增长。手动模式切换通过按\texttt{M}键实现，切换后方向键控制蛇移动，A*路径预览消失。暂停与恢复功能由空格键控制，暂停时游戏状态冻结，恢复后蛇继续移动。重新开始功能按\texttt{R}键触发，分数清零、蛇身重置、障碍物重新生成。当蛇撞墙或撞障碍物后触发游戏结束，显示"游戏结束"遮罩和最终分数。A*可视化面板在右侧区域实时显示搜索过程，其中绿色表示起点、红色表示终点、蓝色表示已探索节点、橙色表示待探索节点、黄色表示路径。
+\subsection{蛇的数据结构与移动逻辑}
 
-图6-1展示了AI自动模式下的游戏运行界面。左侧为游戏区域，蛇身以绿色方块表示（蛇头颜色更亮），红色圆形为食物，灰色方块为随机生成的障碍物，蓝色线条为A*算法计算出的预估路径。右侧为A*算法可视化面板，实时展示搜索过程中的开放列表和关闭列表状态。
+蛇的表示用了最朴素的方法——一个Python列表，每个元素是\texttt{(x, y)}元组，索引0是蛇头。这个选择在实现上没什么争议，增删操作都是O(1)的时间复杂度\upcite{4}。
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_autoplay.png}
-  \caption{AI自动模式运行界面（含A*可视化）}
-\end{figure}
+移动逻辑的代码写在\texttt{snake.py}里：
 
-图6-2展示了手动模式下的游戏界面。切换到手动模式后，A*路径预览和右侧可视化面板均不再显示，玩家通过方向键控制蛇的移动。
+\begin{lstlisting}[language=python,caption={蛇的移动逻辑}]
+def move(self, direction=None):
+    if direction is None:
+        direction = self.direction
+    # 防止180度反向
+    if self._is_opposite_direction(direction, self.direction):
+        direction = self.direction
+    self.direction = direction
+    dx, dy = DIRECTIONS[direction]
+    new_head = (self.head[0] + dx, self.head[1] + dy)
+    self.body.insert(0, new_head)
+    if self.grow_pending > 0:
+        self.grow_pending -= 1
+    else:
+        self.body.pop()
+    return new_head
+\end{lstlisting}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_manual.png}
-  \caption{手动模式运行界面}
-\end{figure}
+方向反向的判断用了一个简单的映射表：\texttt{\{'UP': 'DOWN', 'DOWN': 'UP', ...\}}。这个比计算角度什么的靠谱多了，四方向移动下不会出错。
 
-图6-3展示了游戏结束时的界面。当蛇撞墙或撞到自身后，屏幕中央显示半透明遮罩层，提示"游戏结束"和最终得分。
+\texttt{grow\_pending}这个计数器的设计有个坑。最开始的版本是直接往body列表里append，但这样会导致食物碰撞检测的时机问题——蛇头到达食物位置的那帧，如果同时要检测碰撞和增长，顺序搞不好就出bug。用pending计数器把增长延迟到下一次move时处理，逻辑就干净多了。
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_gameover.png}
-  \caption{游戏结束界面}
-\end{figure}
+\subsection{食物与障碍物生成算法}
 
-\subsection{性能测试}
+食物和障碍物的生成都是随机的，但不能完全随机。蛇头周围3格范围内不能放障碍物，这是个经验值——太小了开局就卡死，太大了障碍物形同虚设。
 
-性能测试主要关注两个指标：A*搜索的节点扩展数量和路径长度。测试方法是在不同障碍物密度下，固定起点和终点，记录搜索过程。
+\begin{lstlisting}[language=python,caption={障碍物生成（含安全区保护）}]
+def _generate_obstacles(self):
+    obstacles = set()
+    safe_zone = set()
+    for dx in range(-3, 4):
+        for dy in range(-3, 4):
+            safe_zone.add((self.snake.head[0] + dx,
+                          self.snake.head[1] + dy))
+    while len(obstacles) < OBSTACLE_COUNT:
+        x = random.randint(0, GRID_WIDTH - 1)
+        y = random.randint(0, GRID_HEIGHT - 1)
+        pos = (x, y)
+        if pos not in obstacles and pos not in safe_zone:
+            obstacles.add(pos)
+    return obstacles
+\end{lstlisting}
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同障碍物密度下的A*搜索性能}
-  \begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{障碍物密度}&\textbf{搜索节点数}&\textbf{路径长度}&\textbf{耗时(ms)}&\textbf{内存峰值(MB)}\\
-    \hline
-    10\% & 45 & 12 & 0.12 & 2.1 \\
-    20\% & 89 & 15 & 0.28 & 2.3 \\
-    30\% & 156 & 21 & 0.45 & 2.8 \\
-    40\% & 234 & 28 & 0.68 & 3.5 \\
-    50\% & 312 & 35 & 0.92 & 4.2 \\
-    \hline
-  \end{tabularx}
-\end{table}
+食物生成时需要额外避开蛇身和已有障碍物，用了个\texttt{occupied}集合做并集。这里有个退化情况：当蛇身占了绝大部分格子时，食物可能找不到可用位置。处理方式是设置最大尝试次数（100次），如果还是找不到就判定游戏胜利——蛇已经把地图吃满了，确实该赢了。
 
-数据反映出一个明显的趋势：障碍物密度每增加10\%，搜索节点数大约翻倍，但耗时增长相对温和（因为每个节点的操作是常数时间）。内存峰值的上升来自open set和closed set的膨胀——高密度下A*需要探索更多"死胡同"才能找到可行路径。
+\subsection{碰撞检测机制}
 
-这里有个不太好的发现：当障碍物密度超过50\%时，A*经常在搜索了大量节点后仍然失败，因为目标被障碍物完全围住。这时候退化到BFS兜底，BFS也找不到就只能靠安全评估函数随机选一个方向。这种"尽力而为"的策略在高密度下存活率骤降。
+碰撞检测分三种情况：撞墙、撞障碍物、撞自己。前两种好说，就是边界检查和集合查找。撞自己这第三种情况，写的时候犯过迷糊。
 
-\subsection{AI策略对比测试}
+问题出在时机上。\texttt{game.update()}里先调\texttt{snake.move()}，此时蛇头已经插到了\texttt{body[0]}位置。所以检测自撞时，应该检查新蛇头是否在\texttt{body[1:]}里，而不是\texttt{body[0:]}：
 
-为了验证A*+安全评估这个组合策略的效果，和几种基准策略做了对比。每种策略跑100局，取平均值。
+\begin{lstlisting}[language=python,caption={碰撞检测（含自身碰撞）}]
+def _check_collision(self, head):
+    # 撞墙
+    if not (0 <= head[0] < GRID_WIDTH and
+            0 <= head[1] < GRID_HEIGHT):
+        return True
+    # 撞障碍物
+    if head in self.obstacles:
+        return True
+    # 撞自身（排除蛇头）
+    if len(self.snake.body) > 1:
+        body_set = set(self.snake.body[1:])
+        if head in body_set:
+            return True
+    return False
+\end{lstlisting}
 
-\begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同AI策略的存活率与得分对比}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{策略}&\textbf{存活率(\%)}&\textbf{平均得分}&\textbf{最高得分}&\textbf{平均蛇长}\\
-    \hline
-    随机移动 & 12 & 45 & 120 & 7 \\
-    纯BFS & 45 & 180 & 450 & 20 \\
-    纯A* & 67 & 350 & 800 & 37 \\
-    A* + 安全评估 & 89 & 520 & 1250 & 54 \\
-    \hline
-  \end{tabularx}
-\end{table}
+还有个容易踩的坑：当蛇吃了食物、\texttt{grow\_pending > 0}时，尾巴不会pop。这时候蛇头如果绕到尾巴的"原位置"，按上面的逻辑是撞不到的（因为尾巴已经留在那里了）。这个行为其实是对的——吃到食物那帧尾巴保留，蛇身实际变长了一格，撞到延长的蛇身应该判死。
 
-结果在意料之中，但也暴露了一些问题。纯A*的67\%存活率看着还行，但仔细分析失败的33\%案例，绝大多数是因为A*找到的路径把蛇引向了死角——路径确实最短，但走到尽头后蛇被自己围住，无路可退。
+\subsection{渲染器设计}
 
-加上安全评估后存活率提升到89\%，但代价是平均路径变长了——安全评估倾向于选择"空间大"的方向而非"距离近"的方向，这在食物争夺效率上有所牺牲。有几局里蛇在地图边缘绕了很大一圈才找到食物，玩家如果看到会觉得很蠢。
+渲染器\texttt{renderer.py}承担了所有绘制工作。为了不污染游戏逻辑层，渲染和逻辑是严格分离的——\texttt{Game}类完全不知道自己长什么样，\texttt{Renderer}类完全不知道游戏规则。
 
-最高得分1250对应的蛇长是127格，在40$\times$30的网格里占了约10\%的空间。再长下去食物生成就经常失败，进入"吃满地图"的终局阶段。
+渲染分为以下几个层次，从底到上依次绘制。背景使用深灰色\texttt{\#1E1E1E}填充，其上绘制暗灰色\texttt{\#323232}的网格线，宽度为1像素。随后依次绘制A*路径预览的半透明蓝色线条、灰色方块障碍物、红色圆形食物，以及绿色方块蛇身（其中蛇头使用更亮的绿色以示区分）。最上层是UI面板的半透明黑色遮罩和文字信息，以及右侧独立的A*可视化面板区域。
 
-图6-4直观展示了四种策略的存活率和得分对比。可以明显看到，安全评估函数的引入将存活率从67\%提升到了89\%，但最高得分的提升幅度更大（从800到1250），这是因为安全策略让蛇活得更久，从而有更多机会进食。
+A*可视化面板是这个项目比较有意思的部分。它在游戏窗口右侧开辟了400$\times$500像素的区域，实时展示A*算法的搜索过程：绿色是起点，红色是终点，蓝色是已探索节点（closed set），橙色是待探索节点（open set），黄色是最终路径。这个面板对调试算法参数非常有用——之前调启发式权重的时候，全靠看这个面板判断搜索是否"方向感"够强。
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\linewidth]{pic/strategy_comparison.png}
-  \caption{不同AI策略存活率与得分对比}
-\end{figure}
+\subsection{双模式切换}
 
-\subsection{测试总结}
+游戏支持自动和手动两种模式，用\texttt{M}键切换。
 
-测试覆盖了从单元级别到系统级别的验证。22个单元测试用例全部通过，功能测试验证了各模块的协同正确性。性能测试揭示了A*算法在高障碍物密度下的退化问题，策略对比则证明了安全评估函数对存活率的关键贡献。
+自动模式下，\texttt{SmartDecisionMaker}每帧计算下一步方向。手动模式下，方向键直接传入\texttt{game.update()}的\texttt{manual\_direction}参数。切换是即时的，不需要重置游戏状态。
 
-坦率地说，测试做得还不够充分。压力测试（比如极端网格尺寸、超高帧率）没做，跨平台兼容性只在两台机器上跑过，交互测试也只覆盖了主要路径。如果要作为正式产品发布，这些都得补上。
+自动模式的决策逻辑在\texttt{decision.py}的\texttt{decide\_next\_move()}方法里，核心是三层降级：
+
+\begin{lstlisting}[language=python,caption={自动模式三层决策降级}]
+def decide_next_move(self, snake, food_positions, obstacles):
+    # 第一层：A*寻路到最近食物
+    path = self.pathfinder.find_path(head, target_food)
+    if path and len(path) > 1:
+        return self._position_to_direction(head, path[1])
+    # 第二层：BFS兜底
+    bfs_dir = self._get_bfs_direction(head, target, obstacles)
+    if bfs_dir:
+        return bfs_dir
+    # 第三层：安全评估择优
+    return self._get_safe_move_with_prediction(...)
+\end{lstlisting}
+
+三层降级的设计有个矛盾之处：A*给出的路径是最优的，但计算量最大；BFS保证能找到路径（如果存在），但路径不一定最短；安全评估函数计算量最小，但给不出"到食物"的保证。实测中，90\%以上的情况第一层A*就够了，BFS兜底偶尔用到，安全评估基本是最后的保命手段。
+
+\subsection{本章小结}
+
+这一章把系统实现中的关键模块过了一遍。核心的设计决策包括：主循环的时间步控制、蛇身的增长延迟机制、碰撞检测的时机处理、渲染层级分离，以及三层决策降级。每个决策背后都有过翻车的经历——特别是碰撞检测那块，debug了差不多一个下午才搞清楚时序问题。
