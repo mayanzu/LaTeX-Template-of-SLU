@@ -1,19 +1,85 @@
 % ================= 文档用途说明 =================
 %{
-%   本模板用于本科毕业论文，使用XeLaTeX编译。
+%   模板用途：本科毕业论文LaTeX模板，基于XeLaTeX编译
 %
-%   目录结构说明：封面存放于cover目录，摘要存放于abstract目录，致谢存放于acknowledge目录，
-%   各章节正文分别存放于body目录的1.tex至7.tex文件中，图片存放于pic目录。
+%   【目录结构】
+%     cover/        - 封面文件夹，放入封面.tex文件
+%     abstract/     - 摘要文件夹，放入摘要.tex文件
+%     body/         - 章节正文文件夹，放入各章节.tex文件（1.tex~7.tex）
+%     acknowledge/  - 致谢文件夹，放入致谢.tex文件
+%     pic/          - 图片文件夹，放入所有用到的图片
 %
-%   文献引用采用thebibliography环境直接管理，图片路径使用相对路径如./pic/xxx.png。
+%   【文件对应关系】
+%     main.tex      - 主文件，编译入口，不要删除开头的注释说明
+%     cover/cover_cyber.tex  - 封面内容，修改这里调整封面样式
+%     abstract/abstract.tex  - 中文摘要内容
+%     body/1.tex    - 第一章（通常写绪论）
+%     body/2.tex    - 第二章（通常写相关技术）
+%     body/3.tex    - 第三章（通常写需求分析）
+%     body/4.tex    - 第四章（通常写系统设计）
+%     body/5.tex    - 第五章（通常写实现细节）
+%     body/6.tex    - 第六章（通常写测试）
+%     body/7.tex    - 第七章（通常写总结）
+%     acknowledge/acknowledge.tex  - 致谢内容
 %
-%   常用转义字符说明：在LaTeX中井号用\#表示，美元符号用\$表示，百分号用\%表示，
-%   连字符用\&表示，下划线用\_表示，左右花括号分别用\{和\}表示。章节号用\S表示，
-%   段落号用\P表示，剑号用\dag表示，双剑号用\ddag表示。若要在文中保留原始的%字符，
-%   可使用\verb|\%|或verb环境。
+%   【编译方式】
+%     必须使用XeLaTeX编译器编译，不能用PDFLaTeX或LuaLaTeX
+%     在VS Code中：安装LaTeX Workshop插件，按Ctrl+Alt+B编译
+%     命令行方式：xelatex main.tex（需要多次运行生成目录和引用）
 %
-%   特殊符号需要在导言区加载amssymb宏包后使用，常见符号包括\checkmark表示√、
-%   \star表示★、\diamond表示◆、\blacksquare表示■、\triangle表示△。
+%   【图片插入方法】
+%     \includegraphics[width=0.8\textwidth]{pic/图片文件名}
+%     图片文件放入pic/文件夹，使用相对路径引用
+%     建议使用PNG或PDF格式，EPS格式可能需要不同处理
+%
+%   【文献引用方法】
+%     在thebibliography环境中手动添加引用条目
+%     引用格式：\bibitem[1]{ref1}作者. 题目[J]. 期刊, 年份.
+%     文中引用：\upcite{1} 会在文中显示上标[1]
+%
+%   【常见转义字符】
+%     \#  - 生成井号 #
+%     \$  - 生成美元符号 $（用于数学公式内另当别论）
+%     \%  - 生成百分号 %（用于注释另当别论）
+%     \&  - 生成连字符 &
+%     \_  - 生成下划线 _
+%     \{  - 生成左花括号 {
+%     \}  - 生成右花括号 }
+%     \S  - 生成章节号 §
+%     \P  - 生成段落号 ¶
+%     \dag - 生成剑号 †
+%     \ddag - 生成双剑号 ‡
+%
+%   【如何在正文输入%符号】
+%     方法一：\verb|%|
+%     方法二：\texttt{\%}
+%     方法三（仅用于数学公式中）：\# 即可
+%
+%   【特殊符号】（需加载amssymb宏包）
+%     \checkmark  - √ 对勾
+%     \star      - ★ 五角星
+%     \diamond   - ◆ 菱形
+%     \blacksquare - ■ 黑方块
+%     \triangle - △ 三角形
+%     \circ     - ○ 空心圆
+%     \bullet   - ● 实心圆点
+%     \infty    - ∞ 无穷大
+%
+%   【代码块插入方法】
+%     \begin{lstlisting}[language=python]
+%     your code here
+%     \end{lstlisting}
+%     language参数可选：python, java, c, cpp, matlab等
+%
+%   【表格注意点】
+%     表格可能跨页时用\begin{table}不用H强制位置
+%     表格内换行用makecell命令：\makecell{第一行\\第二行}
+%     表格宽度超过页面时用 tabularx 环境配合X参数
+%
+%   【数学公式注意点】
+%     行内公式用 $...$ 或 \(...\)
+%     行间公式用 \[...\] 或 \begin{equation}...\end{equation}
+%     多行公式用 align 环境，编号用 tag
 %}
 
 \documentclass[10pt,a4paper]{ctexart}
