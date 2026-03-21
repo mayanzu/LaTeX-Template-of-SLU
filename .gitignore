@@ -1,5 +1,15 @@
 # 忽略 .trae 目录及其所有内容
 .trae/
 
+# LaTeX 编译临时文件
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+
 # 忽略 .gitignore 本身（如果不需要版本控制）
 # .gitignore

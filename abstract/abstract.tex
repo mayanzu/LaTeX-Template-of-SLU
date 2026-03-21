@@ -2,27 +2,21 @@
 \pagestyle{body}
 \hspace*{\fill}
 \section*{\zihao{-2}\heiti
-基于 Unity 开发引擎的 2D 横版冒险游戏设计与实现}
+基于A*算法的智能贪吃蛇游戏设计与实现}
 
 \noindent
 {\zihao{-4}\heiti
-摘要：}游戏开发是一个富有创新和创造性的领域，它为设计、图形、音频、编程等方面的创造力提供了一个独特的机会，可以在项目中实现自己的创意想法。游戏开发涉及多个领域，包括计算机科学、美术设计、音频工程等。因此，选择游戏开发作为论文主题可以促进跨学科的学习和合作。通过研究和实践游戏开发，可以将技术知识应用到实际项目中，并强调用户体验，包括游戏流畅性、互动性和沉浸感等，这可以为用户体验设计和研究提供有趣的案例。2D横版冒险游戏是经典的游戏类型，受到了广大玩家的喜爱。这类游戏简单易懂、玩法多样，可以带给玩家丰富的冒险体验。
+摘要：}
+贪吃蛇游戏自诞生以来便是一款经久不衰的经典小游戏，其规则简单但策略空间丰富，适合用来验证各类搜索算法的实际效果。本文基于Python语言和Pygame图形库，设计并实现了一款具备自动寻路能力的智能贪吃蛇游戏。系统的核心在于利用A*算法驱动蛇的路径规划，使蛇能够在避开自身蛇身与障碍物的前提下，持续追踪食物位置并做出移动决策。论文从A*算法的基本原理出发，分析了曼哈顿距离、欧几里得距离等启发式函数对搜索效率和路径质量的影响，并将其与BFS、Dijkstra等经典搜索算法进行了性能对比。在实际调试过程中发现，启发式函数的权重选择对搜索结果有显著影响——权重过大会导致搜索不够彻底，错过最优路径；权重过小则退化为类似Dijkstra的遍历，计算开销陡增。此外，当蛇身变长导致可用空间急剧缩减时，单纯的A*寻路往往无法避免"自己堵死自己"的死局，需要引入安全区域评估等辅助策略。本系统实现了手动操控与AI自动运行两种模式，支持游戏界面可视化、分数统计、速度调节等功能。测试结果表明，在中等规模网格下A*算法能够以较低的搜索代价完成绝大多数场景的路径规划，但在高密度蛇身条件下仍存在决策失误的情况，这也是后续优化的方向。
 
-Unity引擎具有强大的2D游戏开发工具，与深度学习和自然语言处理技术的整合相对容易，使用Unity引擎可以较为轻松地制作2D横版冒险游戏。通过撰写这篇论文，可以提供一个实践案例，更好地掌握Unity引擎的应用技巧，并在过程中遇到并解决各种技术挑战，本篇论文研究内容包括游戏概念设计、美术资源准备、游戏界面设计、关卡设计、游戏编程开发、测试和优化。
-
-Unity引擎具有强大的2D游戏开发工具，与深度学习和自然语言处理技术的整合相对容易，使用Unity引擎可以较为轻松地制作2D横版冒险游戏。通过撰写这篇论文，可以提供一个实践案例，更好地掌握Unity引擎的应用技巧，并在过程中遇到并解决各种技术挑战，本篇论文研究内容包括游戏概念设计、美术资源准备、游戏界面设计、关卡设计、游戏编程开发、测试和优化。
-
-\noindent{\heiti 关键词：}Unity；游戏开发；游戏设计
+\noindent{\heiti 关键词：}A*算法；贪吃蛇游戏；路径规划；Pygame；游戏AI
 
 \clearpage
 \hspace*{\fill}
 \section*{\zihao{-2}
-Design and implementation of a 2D side-scrolling adventure game using the Unity development engine}
+Design and Implementation of an Intelligent Snake Game Based on A* Algorithm}
 
-\noindent\textbf{Abstract}: Game development is a field rich in innovation and creativity, providing a unique opportunity for creative expression in design, graphics, audio, programming, and more. It encompasses various disciplines including computer science, art design, audio engineering, among others. Therefore, selecting game development as a thesis topic can promote interdisciplinary learning and collaboration. Through researching and practicing game development, one can apply technical knowledge to real projects and emphasize user experience, including game fluency, interactivity, and immersion, providing interesting case studies for user experience design and research. 2D side-scrolling adventure games are a classic genre loved by many players. These games are simple, easy to understand, and offer diverse gameplay, providing players with rich adventure experiences. 
+\noindent\textbf{Abstract}: 
+The snake game has been a classic arcade game since its inception, featuring simple rules yet offering rich strategic depth, making it an excellent testbed for various search algorithms. This thesis designs and implements an intelligent snake game with automatic pathfinding capability, built upon the Python programming language and the Pygame graphical library. The core of the system lies in employing the A* algorithm to drive path planning for the snake, enabling it to continuously track food positions and make movement decisions while avoiding collisions with its own body and obstacles. Starting from the fundamental principles of the A* algorithm, the thesis analyzes the impact of heuristic functions such as Manhattan distance and Euclidean distance on search efficiency and path quality, and compares their performance against classical search algorithms including BFS and Dijkstra. During practical debugging, it was found that the weight selection of heuristic functions significantly affects search results --- excessively large weights lead to insufficient search and suboptimal paths, while overly small weights degenerate into Dijkstra-like traversal with sharply increased computational overhead. Furthermore, when the snake body grows and available space diminishes, pure A* pathfinding often fails to prevent self-blockage, necessitating auxiliary strategies such as safe area evaluation. The system implements both manual control and AI automatic operation modes, supporting game interface visualization, score statistics, and speed adjustment. Test results demonstrate that the A* algorithm can accomplish path planning in most scenarios with low search cost under moderate grid sizes, yet decision errors still occur under high-density snake body conditions, pointing toward directions for future optimization.
 
-Unity engine offers powerful 2D game development tools, and its integration with deep learning and natural language processing technologies is relatively straightforward. Using Unity engine, it's relatively easy to create 2D side-scrolling adventure games. Through writing this thesis, a practical case study can be provided to better grasp the application techniques of Unity engine and encounter and solve various technical challenges along the way. The research content of this thesis includes game concept design, art resource preparation, game interface design, level design, game programming development, testing, and optimization.
-
-Unity engine offers powerful 2D game development tools, and its integration with deep learning and natural language processing technologies is relatively straightforward. Using Unity engine, it's relatively easy to create 2D side-scrolling adventure games. Through writing this thesis, a practical case study can be provided to better grasp the application techniques of Unity engine and encounter and solve various technical challenges along the way. The research content of this thesis includes game concept design, art resource preparation, game interface design, level design, game programming development, testing, and optimization.
-
-\noindent\textbf{Keywords：}Unity, Game Develop, Game design
+\noindent\textbf{Keywords：}A* Algorithm; Snake Game; Path Planning; Pygame; Game AI
