@@ -1,6 +1,3 @@
-# 忽略 .trae 目录及其所有内容
-.trae/
-
 # LaTeX 编译临时文件
 *.aux
 *.log
