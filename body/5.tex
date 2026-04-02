@@ -2,38 +2,38 @@
 
 \section{系统详细设计与实现}
 
-本章讨论整个贪吃蛇游戏系统从底层数据结构到上层渲染管线的具体实现。说实话，Pygame不是什么高大上的框架，但它的API够直观，拿来写这种规模的原型完全够用，省得折腾引擎层的东西。
+这章讲整个贪吃蛇系统从底层数据结构到上层渲染的具体实现。Pygame不是什么高大上的框架，但API够直观，写这种规模的原型绰绰有余。
 
 \subsection{游戏引擎与开发环境}
 
-开发语言选了Python 3.x，渲染框架用的Pygame 2.x。做这个选择的时候纠结过一阵子——C++配合SDL2在性能上肯定有优势，但考虑到这个项目的重点在算法而不是引擎优化，Python的开发效率优势就很明显了。写个A*原型，用Python调通逻辑再快不过。
+语言Python 3.x，渲染框架Pygame 2.x。做这个选择的时候犹豫过——C++配SDL2性能肯定好，但项目重点在算法不在引擎，Python写起来快，调A*原型用Python再合适不过。
 
-Pygame底层封装的是SDL2，提供窗口管理、事件循环、2D渲染这些基础能力\upcite{19}。对于本项目40$\times$30的网格规模，Pygame的软件渲染完全扛得住，60fps下CPU占用不到15\%（实测数据，i7-12700H）。
+Pygame底层是SDL2，提供窗口管理、事件循环、2D渲染这些基础能力\upcite{19}。40$\times$30的网格，Pygame的软件渲染完全没问题，60fps下CPU占用不到15\%（实测，i7-12700H）。
 
-开发环境配置如下表所示：
+开发环境：
 
 \begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{开发环境配置}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-    \hline
-    \textbf{项目}&\textbf{版本/说明}\\
-    \hline
-    操作系统 & Windows 11 / Ubuntu 22.04 \\
-    Python & 3.11.5 \\
-    Pygame & 2.5.2 \\
-    编辑器 & VS Code \\
-    版本控制 & Git \\
-    \hline
-  \end{tabularx}
+	\renewcommand\arraystretch{2}
+	\centering
+	\caption{开发环境配置}
+	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+		\hline
+		\textbf{项目} & \textbf{版本/说明}            \\
+		\hline
+		操作系统        & Windows 11 / Ubuntu 22.04 \\
+		Python      & 3.11.5                    \\
+		Pygame      & 2.5.2                     \\
+		编辑器         & VS Code                   \\
+		版本控制        & Git                       \\
+		\hline
+	\end{tabularx}
 \end{table}
 
 \subsection{游戏主循环设计}
 
-游戏主循环采用了经典的"事件处理—状态更新—渲染"三段式结构。这种模式在游戏开发里几乎是标准做法\upcite{14}，没什么花哨的，但写的时候踩了不少坑。
+主循环是经典的"事件处理—状态更新—渲染"三段式。游戏开发里这基本是标准做法\upcite{14}，不花哨，但写的时候踩了不少坑。
 
-主循环的核心逻辑在\texttt{main.py}里，大致是这样一个骨架：
+核心逻辑在\texttt{main.py}：
 
 \begin{lstlisting}[language=python,caption={游戏主循环核心逻辑}]
 while running:
@@ -56,15 +56,23 @@ while running:
     clock.tick(FPS)
 \end{lstlisting}
 
-这里面有个容易忽略的细节：\texttt{game.update()}的调用时机。如果把更新逻辑放在事件循环外面直接调，没有时间间隔控制，蛇的移动速度会和CPU主频绑定——在快机器上蛇飞快，在慢机器上蛇蠕动。所以加了一个\texttt{move\_delay}参数（默认150ms），通过比较\texttt{current\_time}和\texttt{last\_move\_time}来控制节奏。
+容易忽略的细节：\texttt{game.update()}的调用时机。直接调不控制时间间隔的话，蛇速会跟CPU主频绑定——快机器上蛇飞，慢机器上蛇爬。所以加了\texttt{move\_delay}参数（默认150ms），用当前时间$t_{now}$和上次移动时间$t_{last}$判断。移动触发条件：
+\begin{equation}
+	t_{now} - t_{last} \ge T_{delay}
+\end{equation}
+$T_{delay}$是移动间隔，蛇速（格/秒）：
+\begin{equation}
+	v_{snake} = \frac{1000}{T_{delay}} \text{ (格/秒)}
+\end{equation}
+$T_{delay}=150$ms时，蛇速约6.67格/秒。
 
-另外，A*可视化数据的更新频率也做了独立控制（\texttt{ASTAR\_UPDATE\_INTERVAL = 500ms}），不和游戏帧同步。原因很简单：A*搜索的计算量不小，每帧都跑一次会让帧率骤降，尤其是障碍物密集的时候。500ms更新一次对可视化来说完全够了，用户看到的是"实时"的感觉。
+A*可视化数据的更新频率也做了独立控制（\texttt{ASTAR\_UPDATE\_INTERVAL = 500ms}），不和游戏帧同步。A*搜索量不小，每帧都跑一次帧率会骤降，特别是障碍物密集的时候。500ms更新一次对可视化够了，用户感觉是"实时"的。
 
 \subsection{蛇的数据结构与移动逻辑}
 
-蛇的表示用了最朴素的方法——一个Python列表，每个元素是\texttt{(x, y)}元组，索引0是蛇头。这个选择在实现上没什么争议，增删操作都是O(1)的时间复杂度\upcite{4}。
+蛇的表示用最朴素的方案——Python列表，每个元素是\texttt{(x, y)}元组，索引0是蛇头。增删都是O(1)\upcite{4}，没什么争议。
 
-移动逻辑的代码写在\texttt{snake.py}里：
+移动逻辑在\texttt{snake.py}：
 
 \begin{lstlisting}[language=python,caption={蛇的移动逻辑}]
 def move(self, direction=None):
@@ -84,13 +92,17 @@ def move(self, direction=None):
     return new_head
 \end{lstlisting}
 
-方向反向的判断用了一个简单的映射表：\texttt{\{'UP': 'DOWN', 'DOWN': 'UP', ...\}}。这个比计算角度什么的靠谱多了，四方向移动下不会出错。
+方向反向判断可以形式化。设当前方向$\vec{d_c} = (dx_c, dy_c)$，新方向$\vec{d_n} = (dx_n, dy_n)$，反向判定：
+\begin{equation}
+	\vec{d_c} \cdot \vec{d_n} = dx_c \cdot dx_n + dy_c \cdot dy_n = -1
+\end{equation}
+四方向移动的方向向量集合$\{(1,0),(-1,0),(0,1),(0,-1)\}$，相反方向的点积都是$-1$。
 
-\texttt{grow\_pending}这个计数器的设计有个坑。最开始的版本是直接往body列表里append，但这样会导致食物碰撞检测的时机问题——蛇头到达食物位置的那帧，如果同时要检测碰撞和增长，顺序搞不好就出bug。用pending计数器把增长延迟到下一次move时处理，逻辑就干净多了。
+\texttt{grow\_pending}计数器的设计有个坑。最开始直接往body里append，但食物碰撞检测的时机有问题——蛇头到食物的那帧，同时检测碰撞和增长，顺序搞不好就出bug。用pending计数器把增长延迟到下次move处理，逻辑就干净了。
 
 \subsection{食物与障碍物生成算法}
 
-食物和障碍物的生成都是随机的，但不能完全随机。蛇头周围3格范围内不能放障碍物，这是个经验值——太小了开局就卡死，太大了障碍物形同虚设。
+食物和障碍物都是随机生成，但不能完全随机。蛇头周围3格内不能放障碍物——经验值，太小了开局就卡死，太大了障碍物没意义。
 
 \begin{lstlisting}[language=python,caption={障碍物生成（含安全区保护）}]
 def _generate_obstacles(self):
@@ -109,13 +121,13 @@ def _generate_obstacles(self):
     return obstacles
 \end{lstlisting}
 
-食物生成时需要额外避开蛇身和已有障碍物，用了个\texttt{occupied}集合做并集。这里有个退化情况：当蛇身占了绝大部分格子时，食物可能找不到可用位置。处理方式是设置最大尝试次数（100次），如果还是找不到就判定游戏胜利——蛇已经把地图吃满了，确实该赢了。
+食物生成要额外避开蛇身和已有障碍物，用\texttt{occupied}集合并集判断。退化情况：蛇身占了绝大部分格子时食物找不到位置。设最大尝试次数100次，还是找不到就判定游戏赢——蛇已经把地图吃满了。
 
 \subsection{碰撞检测机制}
 
-碰撞检测分三种情况：撞墙、撞障碍物、撞自己。前两种好说，就是边界检查和集合查找。撞自己这第三种情况，写的时候犯过迷糊。
+碰撞检测三种情况：撞墙、撞障碍物、撞自己。前两种直接边界检查和集合查找。撞自己这第三种，写的时候犯过迷糊。
 
-问题出在时机上。\texttt{game.update()}里先调\texttt{snake.move()}，此时蛇头已经插到了\texttt{body[0]}位置。所以检测自撞时，应该检查新蛇头是否在\texttt{body[1:]}里，而不是\texttt{body[0:]}：
+问题在时机上。\texttt{game.update()}先调\texttt{snake.move()}，蛇头已经插到\texttt{body[0]}了。所以检测自撞应该查新蛇头是否在\texttt{body[1:]}里，不是\texttt{body[0:]}：
 
 \begin{lstlisting}[language=python,caption={碰撞检测（含自身碰撞）}]
 def _check_collision(self, head):
@@ -134,23 +146,40 @@ def _check_collision(self, head):
     return False
 \end{lstlisting}
 
-还有个容易踩的坑：当蛇吃了食物、\texttt{grow\_pending > 0}时，尾巴不会pop。这时候蛇头如果绕到尾巴的"原位置"，按上面的逻辑是撞不到的（因为尾巴已经留在那里了）。这个行为其实是对的——吃到食物那帧尾巴保留，蛇身实际变长了一格，撞到延长的蛇身应该判死。
+还有个坑：\texttt{grow\_pending > 0}时尾巴不pop，蛇头绕到尾巴"原位置"按上面逻辑撞不到（尾巴还留在那）。这个行为其实是对的——吃食物那帧尾巴保留，蛇身实际变长了一格，撞到延长的蛇身应该判死。
 
 \subsection{渲染器设计}
 
-渲染器\texttt{renderer.py}承担了所有绘制工作。为了不污染游戏逻辑层，渲染和逻辑是严格分离的——\texttt{Game}类完全不知道自己长什么样，\texttt{Renderer}类完全不知道游戏规则。
+渲染器\texttt{renderer.py}承担所有绘制。渲染和逻辑严格分离——\texttt{Game}不知道自己长什么样，\texttt{Renderer}不知道游戏规则。
 
-渲染分为以下几个层次，从底到上依次绘制。背景使用深灰色\texttt{\#1E1E1E}填充，其上绘制暗灰色\texttt{\#323232}的网格线，宽度为1像素。随后依次绘制A*路径预览的半透明蓝色线条、灰色方块障碍物、红色圆形食物，以及绿色方块蛇身（其中蛇头使用更亮的绿色以示区分）。最上层是UI面板的半透明黑色遮罩和文字信息，以及右侧独立的A*可视化面板区域。
+网格坐标到屏幕像素的变换：
+\begin{equation}
+	\begin{cases}
+		px = x \cdot cell\_size + offset\_x \\
+		py = y \cdot cell\_size + offset\_y
+	\end{cases}
+\end{equation}
+$(x,y)$是网格坐标，$cell\_size$是格子像素大小，$(offset\_x, offset\_y)$是网格区域左上角偏移。反过来像素到网格：
+\begin{equation}
+	x = \left\lfloor \frac{px - offset\_x}{cell\_size} \right\rfloor, \quad
+	y = \left\lfloor \frac{py - offset\_y}{cell\_size} \right\rfloor
+\end{equation}
 
-A*可视化面板是这个项目比较有意思的部分。它在游戏窗口右侧开辟了400$\times$500像素的区域，实时展示A*算法的搜索过程：绿色是起点，红色是终点，蓝色是已探索节点（closed set），橙色是待探索节点（open set），黄色是最终路径。这个面板对调试算法参数非常有用——之前调启发式权重的时候，全靠看这个面板判断搜索是否"方向感"够强。
+渲染分层从底到上依次画。每层的混合公式：
+\begin{equation}
+	I_{final}(x,y) = \alpha_l \cdot I_l(x,y) + (1 - \alpha_l) \cdot I_{l-1}(x,y)
+\end{equation}
+$\alpha_l$是第$l$层透明度，$I_l(x,y)$是该层颜色值。底层深灰\texttt{\#1E1E1E}背景，上面画暗灰\texttt{\#323232}网格线（1像素宽）。然后依次画A*路径预览（半透明蓝线）、灰色障碍物方块、红色食物圆形、绿色蛇身方块（蛇头更亮）。最上层是UI面板半透明黑遮罩和文字，以及右侧A*可视化区域。
+
+A*可视化面板是这个项目比较有意思的部分。右侧400$\times$500像素区域，实时展示搜索过程：绿色起点、红色终点、蓝色已探索、橙色待探索、黄色最终路径。调启发式权重的时候全靠看这个面板判断搜索"方向感"够不够强。
 
 \subsection{双模式切换}
 
-游戏支持自动和手动两种模式，用\texttt{M}键切换。
+\texttt{M}键切自动和手动模式。
 
-自动模式下，\texttt{SmartDecisionMaker}每帧计算下一步方向。手动模式下，方向键直接传入\texttt{game.update()}的\texttt{manual\_direction}参数。切换是即时的，不需要重置游戏状态。
+自动模式\texttt{SmartDecisionMaker}每帧算下一步方向。手动模式方向键直接传入\texttt{game.update()}。切换即时生效，不重置游戏。
 
-自动模式的决策逻辑在\texttt{decision.py}的\texttt{decide\_next\_move()}方法里，核心是三层降级：
+自动模式决策在\texttt{decision.py}的\texttt{decide\_next\_move()}里，核心是三层降级：
 
 \begin{lstlisting}[language=python,caption={自动模式三层决策降级}]
 def decide_next_move(self, snake, food_positions, obstacles):
@@ -166,8 +195,4 @@ def decide_next_move(self, snake, food_positions, obstacles):
     return self._get_safe_move_with_prediction(...)
 \end{lstlisting}
 
-三层降级的设计有个矛盾之处：A*给出的路径是最优的，但计算量最大；BFS保证能找到路径（如果存在），但路径不一定最短；安全评估函数计算量最小，但给不出"到食物"的保证。实测中，90\%以上的情况第一层A*就够了，BFS兜底偶尔用到，安全评估基本是最后的保命手段。
-
-\subsection{本章小结}
-
-这一章把系统实现中的关键模块过了一遍。核心的设计决策包括：主循环的时间步控制、蛇身的增长延迟机制、碰撞检测的时机处理、渲染层级分离，以及三层决策降级。每个决策背后都有过翻车的经历——特别是碰撞检测那块，debug了差不多一个下午才搞清楚时序问题。
+三层之间有个矛盾：A*给的路径最优但计算量最大；BFS保证能找到路（如果存在）但路径不一定最短；安全评估计算量最小但给不出"到食物"的保证。实测90\%以上情况第一层A*就够了，BFS偶尔用到，安全评估基本是最后保命手段。

@@ -258,6 +258,8 @@
 \renewcommand{\thetable}{\arabic{section}-\arabic{table}}
 \numberwithin{table}{section}
 \renewcommand{\thetable}{\thesection-\arabic{table}}
+\numberwithin{equation}{section}
+\renewcommand{\theequation}{\arabic{section}-\arabic{equation}}
 \DeclareCaptionLabelSeparator{quad}{\quad}
 \captionsetup{labelsep=quad}
 \captionsetup[figure]{
@@ -276,14 +278,14 @@
 \newpage\input{"cover/cover_cyber"}
 
 \begin{sloppypar}
-  \newpage\input{"abstract/abstract"}
-  \newpage
+	\newpage\input{"abstract/abstract"}
+	\newpage
 \end{sloppypar}
 
 \newpage
 \setcounter{page}{1}
 \fancypagestyle{plain}{
-  \pagestyle{body}
+	\pagestyle{body}
 }
 \pagenumbering{Roman}
 \hspace*{\fill}
@@ -295,13 +297,13 @@
 \pagestyle{body}
 
 \begin{sloppypar}
-  \newpage\input{"body/1.tex"}
-  \newpage\input{"body/2.tex"}
-  \newpage\input{"body/3.tex"}
-  \newpage\input{"body/4.tex"}
-  \newpage\input{"body/5.tex"}
-  \newpage\input{"body/6.tex"}
-  \newpage\input{"body/7.tex"}
+	\newpage\input{"body/1.tex"}
+	\newpage\input{"body/2.tex"}
+	\newpage\input{"body/3.tex"}
+	\newpage\input{"body/4.tex"}
+	\newpage\input{"body/5.tex"}
+	\newpage\input{"body/6.tex"}
+	\newpage\input{"body/7.tex"}
 \end{sloppypar}
 
 \clearpage
@@ -309,33 +311,33 @@
 \addcontentsline{toc}{section}{参考文献}
 \heiti
 \begin{thebibliography}{99}
-\large
-\setlength{\itemsep}{1.5pt}
-  \bibitem[1]{ref1}Hart P E, Nilsson N J, Raphael B. A formal basis for the heuristic determination of minimum cost paths[J]. IEEE Transactions on Systems Science and Cybernetics, 1968, 4(2): 100-107.
-  \bibitem[2]{ref2}Russell S, Norvig P. Artificial Intelligence: A Modern Approach[M]. 4th ed. Pearson, 2020.
-  \bibitem[3]{ref3}Dechter R, Pearl J. Generalized best-first search strategies and the optimality of A*[J]. Journal of the ACM, 1985, 32(3): 505-536.
-  \bibitem[4]{ref4}严蔚敏, 吴伟民. 数据结构（C语言版）[M]. 北京: 清华大学出版社, 2011.
-  \bibitem[5]{ref5}Cui X, Shi H. A*-based pathfinding in modern computer games[C]//International Conference on Computer Science and Education, 2011: 17-22.
-  \bibitem[6]{ref6}Sturtevant N R. Benchmarks for grid-based pathfinding[J]. IEEE Transactions on Computational Intelligence and AI in Games, 2012, 4(2): 144-148.
-  \bibitem[7]{ref7}王晓东. 计算机算法设计与分析[M]. 5版. 北京: 电子工业出版社, 2018.
-  \bibitem[8]{ref8}LaValle S M. Planning Algorithms[M]. Cambridge University Press, 2006.
-  \bibitem[9]{ref9}Patel A. Amit's A* Pages[EB/OL]. http://theory.stanford.edu/~amitp/GameProgramming/, 2023.
-  \bibitem[10]{ref10}Rabin S. A* speed optimizations[J]. Game Programming Gems, 2000: 272-287.
-  \bibitem[11]{ref11}张铭, 王腾蛟, 赵海燕. 数据结构与算法[M]. 北京: 高等教育出版社, 2008.
-  \bibitem[12]{ref12}Sweetman G. Python游戏编程入门[M]. 北京: 人民邮电出版社, 2019.
-  \bibitem[13]{ref13}Matthes E. Python编程：从入门到实践[M]. 2版. 北京: 人民邮电出版社, 2020.
-  \bibitem[14]{ref14}Millington I. Artificial Intelligence for Games[M]. 3rd ed. CRC Press, 2019.
-  \bibitem[15]{ref15}Buckland M. Programming Game AI by Example[M]. Wordware Publishing, 2005.
-  \bibitem[16]{ref16}Higgins C M. A comparison of algorithms for pathfinding on grid maps[D]. University of Edinburgh, 2009.
-  \bibitem[17]{ref17}Nash A, Koenig S, Tovey C. Lazy Theta*: Any-angle path planning and path length analysis in 3D[C]//Proceedings of the AAAI Conference on Artificial Intelligence, 2010.
-  \bibitem[18]{ref18}何斌, 马天予, 王运坚. Visual C++数字图像处理[M]. 北京: 人民邮电出版社, 2001.
-  \bibitem[19]{ref19}Sweigart A. Making Games with Python \& Pygame[M]. CreateSpace, 2012.
-  \bibitem[20]{ref20}Yampolskiy R V. Game playing[J]. Wiley Encyclopedia of Computer Science and Engineering, 2008.
+	\large
+	\setlength{\itemsep}{1.5pt}
+	\bibitem[1]{ref1}Hart P E, Nilsson N J, Raphael B. A formal basis for the heuristic determination of minimum cost paths[J]. IEEE Transactions on Systems Science and Cybernetics, 1968, 4(2): 100-107.
+	\bibitem[2]{ref2}Russell S, Norvig P. Artificial Intelligence: A Modern Approach[M]. 4th ed. Pearson, 2020.
+	\bibitem[3]{ref3}Dechter R, Pearl J. Generalized best-first search strategies and the optimality of A*[J]. Journal of the ACM, 1985, 32(3): 505-536.
+	\bibitem[4]{ref4}严蔚敏, 吴伟民. 数据结构（C语言版）[M]. 北京: 清华大学出版社, 2011.
+	\bibitem[5]{ref5}Cui X, Shi H. A*-based pathfinding in modern computer games[C]//International Conference on Computer Science and Education, 2011: 17-22.
+	\bibitem[6]{ref6}Sturtevant N R. Benchmarks for grid-based pathfinding[J]. IEEE Transactions on Computational Intelligence and AI in Games, 2012, 4(2): 144-148.
+	\bibitem[7]{ref7}王晓东. 计算机算法设计与分析[M]. 5版. 北京: 电子工业出版社, 2018.
+	\bibitem[8]{ref8}LaValle S M. Planning Algorithms[M]. Cambridge University Press, 2006.
+	\bibitem[9]{ref9}Patel A. Amit's A* Pages[EB/OL]. http://theory.stanford.edu/~amitp/GameProgramming/, 2023.
+	\bibitem[10]{ref10}Rabin S. A* speed optimizations[J]. Game Programming Gems, 2000: 272-287.
+	\bibitem[11]{ref11}张铭, 王腾蛟, 赵海燕. 数据结构与算法[M]. 北京: 高等教育出版社, 2008.
+	\bibitem[12]{ref12}Sweetman G. Python游戏编程入门[M]. 北京: 人民邮电出版社, 2019.
+	\bibitem[13]{ref13}Matthes E. Python编程：从入门到实践[M]. 2版. 北京: 人民邮电出版社, 2020.
+	\bibitem[14]{ref14}Millington I. Artificial Intelligence for Games[M]. 3rd ed. CRC Press, 2019.
+	\bibitem[15]{ref15}Buckland M. Programming Game AI by Example[M]. Wordware Publishing, 2005.
+	\bibitem[16]{ref16}Higgins C M. A comparison of algorithms for pathfinding on grid maps[D]. University of Edinburgh, 2009.
+	\bibitem[17]{ref17}Nash A, Koenig S, Tovey C. Lazy Theta*: Any-angle path planning and path length analysis in 3D[C]//Proceedings of the AAAI Conference on Artificial Intelligence, 2010.
+	\bibitem[18]{ref18}何斌, 马天予, 王运坚. Visual C++数字图像处理[M]. 北京: 人民邮电出版社, 2001.
+	\bibitem[19]{ref19}Sweigart A. Making Games with Python \& Pygame[M]. CreateSpace, 2012.
+	\bibitem[20]{ref20}Yampolskiy R V. Game playing[J]. Wiley Encyclopedia of Computer Science and Engineering, 2008.
 \end{thebibliography}
 
 \normalfont
 \begin{sloppypar}
-  \newpage\input{"acknowledge/acknowledge"}
+	\newpage\input{"acknowledge/acknowledge"}
 \end{sloppypar}
 
 \end{document}

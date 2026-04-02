@@ -2,54 +2,54 @@
 
 \section{系统测试与结果分析}
 
-软件测试这东西，说起来都知道重要，做起来才发现有多烦。特别是游戏这种交互性强的程序，很多bug在特定时序下才会触发，单元测试能覆盖的场景有限。这一章从单元测试、功能测试和性能测试三个维度来检验系统。
+测游戏程序挺烦的，交互性强，很多bug特定时序下才触发，单元测试覆盖不了太多。这章从单元测试、功能测试、性能测试三个角度来验。
 
 \subsection{测试环境}
 
-测试在两台机器上进行，配置如下：
+两台机器上测的：
 
 \begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{测试环境}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-    \hline
-    \textbf{项目}&\textbf{设备A}&\textbf{设备B}\\
-    \hline
-    CPU & Intel i7-12700H & Intel i5-10400 \\
-    内存 & 16GB DDR5 & 8GB DDR4 \\
-    系统 & Windows 11 & Ubuntu 22.04 \\
-    Python & 3.11.5 & 3.10.12 \\
-    Pygame & 2.5.2 & 2.5.2 \\
-    \hline
-  \end{tabularx}
+	\renewcommand\arraystretch{2}
+	\centering
+	\caption{测试环境}
+	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+		\hline
+		\textbf{项目} & \textbf{设备A}    & \textbf{设备B}   \\
+		\hline
+		CPU         & Intel i7-12700H & Intel i5-10400 \\
+		内存          & 16GB DDR5       & 8GB DDR4       \\
+		系统          & Windows 11      & Ubuntu 22.04   \\
+		Python      & 3.11.5          & 3.10.12        \\
+		Pygame      & 2.5.2           & 2.5.2          \\
+		\hline
+	\end{tabularx}
 \end{table}
 
 \subsection{单元测试设计与执行}
 
-单元测试用Python自带的\texttt{unittest}框架编写，共22个测试用例，覆盖四个核心类。测试分类如下：
+用Python自带的\texttt{unittest}写的，共22个用例，覆盖四个核心类：
 
 \begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{单元测试用例分类}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\raggedright\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{测试类}&\textbf{测试数量}&\textbf{覆盖内容}&\textbf{全部通过}\\
-    \hline
-    TestSnake & 4 & 初始化、移动、增长、反向禁止 & 是 \\
-    TestAStar & 6 & 直线路径、障碍绕行、无路径、同起点终点、可达空间 & 是 \\
-    TestSmartDecisionMaker & 4 & 最近食物查找、方向转换、安全移动、综合决策 & 是 \\
-    TestGame & 8 & 初始化、三种碰撞、食物碰撞、暂停、重置 & 是 \\
-    \hline
-    \textbf{合计} & \textbf{22} & & \textbf{是} \\
-    \hline
-  \end{tabularx}
+	\renewcommand\arraystretch{2}
+	\centering
+	\caption{单元测试用例分类}
+	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\raggedright\arraybackslash}X >{\centering\arraybackslash}X}
+		\hline
+		\textbf{测试类}           & \textbf{测试数量} & \textbf{覆盖内容}            & \textbf{全部通过} \\
+		\hline
+		TestSnake              & 4             & 初始化、移动、增长、反向禁止           & 是             \\
+		TestAStar              & 6             & 直线路径、障碍绕行、无路径、同起点终点、可达空间 & 是             \\
+		TestSmartDecisionMaker & 4             & 最近食物查找、方向转换、安全移动、综合决策    & 是             \\
+		TestGame               & 8             & 初始化、三种碰撞、食物碰撞、暂停、重置      & 是             \\
+		\hline
+		\textbf{合计}            & \textbf{22}   &                          & \textbf{是}    \\
+		\hline
+	\end{tabularx}
 \end{table}
 
-测试过程中发现了一个容易遗漏的边界情况：\texttt{test\_food\_collision}需要验证的是，吃食物后\texttt{grow\_pending}增加、下一次\texttt{move()}后蛇身才实际增长。最初的测试版本直接断言body长度不变，结果发现\texttt{grow()}调用后body确实没变（因为用了pending机制），但逻辑上容易误解。后来改为同时检查\texttt{grow\_pending}和下一次移动后的长度，测试意图才清晰。
+测试中发现一个容易漏的边界：\texttt{test\_food\_collision}要验证吃食物后\texttt{grow\_pending}增加、下次\texttt{move()}后蛇身才实际增长。最开始直接断言body长度不变，结果\texttt{grow()}调用后body确实没变（因为用了pending机制），逻辑上容易搞混。后来改成同时检查\texttt{grow\_pending}和下次移动后的长度才测对。
 
-测试执行结果如下：
+执行结果：
 
 \begin{lstlisting}[language={},caption={单元测试执行输出}]
 ..............
@@ -59,97 +59,113 @@ Ran 22 tests in 0.002s
 OK
 \end{lstlisting}
 
-22个用例全部通过，总耗时2ms。这个速度是因为没有涉及渲染和IO，纯逻辑计算。
+22个全过，耗时2ms。没有渲染和IO，纯逻辑计算，所以很快。
 
 \subsection{功能测试}
 
-功能测试通过实际运行游戏进行，验证各模块协同工作是否正确。游戏启动时应验证窗口尺寸为1200$\times$600、标题正确显示、蛇初始位置居中、障碍物和食物正确生成。自动模式运行时，蛇能够自主寻找食物并成功进食，分数正确累加，蛇身正确增长。手动模式切换通过按\texttt{M}键实现，切换后方向键控制蛇移动，A*路径预览消失。暂停与恢复功能由空格键控制，暂停时游戏状态冻结，恢复后蛇继续移动。重新开始功能按\texttt{R}键触发，分数清零、蛇身重置、障碍物重新生成。当蛇撞墙或撞障碍物后触发游戏结束，显示"游戏结束"遮罩和最终分数。A*可视化面板在右侧区域实时显示搜索过程，其中绿色表示起点、红色表示终点、蓝色表示已探索节点、橙色表示待探索节点、黄色表示路径。
+功能测试跑实际游戏验证各模块协同。验证点包括：窗口1200$\times$600、标题正确、蛇居中、障碍物和食物生成正确。自动模式蛇能自主找食物进食、得分累加、蛇身增长。手动模式\texttt{M}键切换后方向键控制、A*预览消失。空格暂停恢复、\texttt{R}重开。撞墙或自身后游戏结束、显示遮罩和最终分。A*可视化面板右侧实时显示搜索过程（绿起点、红终点、蓝已探索、橙待探索、黄路径）。
 
-图6-1展示了AI自动模式下的游戏运行界面。左侧为游戏区域，蛇身以绿色方块表示（蛇头颜色更亮），红色圆形为食物，灰色方块为随机生成的障碍物，蓝色线条为A*算法计算出的预估路径。右侧为A*算法可视化面板，实时展示搜索过程中的开放列表和关闭列表状态。
+图6-1是AI自动模式的运行界面。左侧游戏区，蛇身绿色方块（蛇头更亮），红色圆形食物，灰色方块障碍物，蓝色线条A*预估路径。右侧A*可视化面板实时展示搜索过程。
 
 \begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_autoplay.png}
-  \caption{AI自动模式运行界面（含A*可视化）}
+	\centering
+	\includegraphics[width=0.95\linewidth]{pic/screenshot_autoplay.png}
+	\caption{AI自动模式运行界面（含A*可视化）}
 \end{figure}
 
-图6-2展示了手动模式下的游戏界面。切换到手动模式后，A*路径预览和右侧可视化面板均不再显示，玩家通过方向键控制蛇的移动。
+图6-2是手动模式。切到手动后A*预览和可视化面板都不显示，玩家方向键控制。
 
 \begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_manual.png}
-  \caption{手动模式运行界面}
+	\centering
+	\includegraphics[width=0.95\linewidth]{pic/screenshot_manual.png}
+	\caption{手动模式运行界面}
 \end{figure}
 
-图6-3展示了游戏结束时的界面。当蛇撞墙或撞到自身后，屏幕中央显示半透明遮罩层，提示"游戏结束"和最终得分。
+图6-3是游戏结束。撞墙或撞自己后屏幕中央半透明遮罩，显示"游戏结束"和最终得分。
 
 \begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{pic/screenshot_gameover.png}
-  \caption{游戏结束界面}
+	\centering
+	\includegraphics[width=0.95\linewidth]{pic/screenshot_gameover.png}
+	\caption{游戏结束界面}
 \end{figure}
 
 \subsection{性能测试}
 
-性能测试主要关注两个指标：A*搜索的节点扩展数量和路径长度。测试方法是在不同障碍物密度下，固定起点和终点，记录搜索过程。
+主要看两个指标：A*搜索扩展节点数和路径长度。搜索效率定义为路径长度和扩展节点数的比值：
+\begin{equation}
+	\eta = \frac{|path|}{|closed\_set|}
+\end{equation}
+$|path|$是路径长度，$|closed\_set|$是关闭列表节点数。$\eta$越接近1说明搜索越高效——启发式精确引导了方向，大部分扩展节点都在最终路径上。测试方法：不同障碍物密度下固定起点终点记录搜索过程。
 
 \begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同障碍物密度下的A*搜索性能}
-  \begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{障碍物密度}&\textbf{搜索节点数}&\textbf{路径长度}&\textbf{耗时(ms)}&\textbf{内存峰值(MB)}\\
-    \hline
-    10\% & 45 & 12 & 0.12 & 2.1 \\
-    20\% & 89 & 15 & 0.28 & 2.3 \\
-    30\% & 156 & 21 & 0.45 & 2.8 \\
-    40\% & 234 & 28 & 0.68 & 3.5 \\
-    50\% & 312 & 35 & 0.92 & 4.2 \\
-    \hline
-  \end{tabularx}
+	\renewcommand\arraystretch{2}
+	\centering
+	\caption{不同障碍物密度下的A*搜索性能}
+	\begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+		\hline
+		\textbf{障碍物密度} & \textbf{搜索节点数} & \textbf{路径长度} & \textbf{耗时(ms)} & \textbf{内存峰值(MB)} \\
+		\hline
+		10\%           & 45             & 12            & 0.12            & 2.1               \\
+		20\%           & 89             & 15            & 0.28            & 2.3               \\
+		30\%           & 156            & 21            & 0.45            & 2.8               \\
+		40\%           & 234            & 28            & 0.68            & 3.5               \\
+		50\%           & 312            & 35            & 0.92            & 4.2               \\
+		\hline
+	\end{tabularx}
 \end{table}
 
-数据反映出一个明显的趋势：障碍物密度每增加10\%，搜索节点数大约翻倍，但耗时增长相对温和，因为每个节点的操作是常数时间。内存峰值的上升来自open set和closed set的膨胀——高密度下A*需要探索更多"死胡同"才能找到可行路径。
+数据趋势很明显：障碍物密度每加10\%，搜索节点数大致翻倍，耗时增长温和因为每个节点操作是常数时间。内存涨是因为open set和closed set膨胀——高密度下A*要探索更多"死胡同"才能找到路。
 
-还有个不太好的发现：当障碍物密度超过50\%时，A*经常在搜索了大量节点后仍然失败，因为目标被障碍物完全围住。这时候退化到BFS兜底，BFS也找不到就只能靠安全评估函数随机选一个方向。这种"尽力而为"的策略在高密度下存活率骤降。
+不太好的发现：障碍物密度超50\%后A*经常搜了大量节点还是失败，因为目标被完全围住。这时候退化到BFS也找不到，只能靠安全评估随机选方向。高密度下存活率骤降。
 
 \subsection{AI策略对比测试}
 
-为了验证A*+安全评估这个组合策略的效果，和几种基准策略做了对比。每种策略跑100局，取平均值。
+验证A*+安全评估组合策略的效果，跟几种基准策略对比。每种跑$N$局（$N=100$）取平均。存活率定义：
+\begin{equation}
+	R_{survive} = \frac{N_{alive}}{N} \times 100\%
+\end{equation}
+$N_{alive}$是蛇身长度达到阈值$L_{th}$（$L_{th}=20$）的局数。平均得分：
+\begin{equation}
+	\bar{S} = \frac{1}{N} \sum_{i=1}^{N} S_i
+\end{equation}
+$S_i$是第$i$局最终得分。
 
 \begin{table}[H]
-  \renewcommand\arraystretch{2}
-  \centering
-  \caption{不同AI策略的存活率与得分对比}
-  \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
-    \textbf{策略}&\textbf{存活率(\%)}&\textbf{平均得分}&\textbf{最高得分}&\textbf{平均蛇长}\\
-    \hline
-    随机移动 & 12 & 45 & 120 & 7 \\
-    纯BFS & 45 & 180 & 450 & 20 \\
-    纯A* & 67 & 350 & 800 & 37 \\
-    A* + 安全评估 & 89 & 520 & 1250 & 54 \\
-    \hline
-  \end{tabularx}
+	\renewcommand\arraystretch{2}
+	\centering
+	\caption{不同AI策略的存活率与得分对比}
+	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+		\hline
+		\textbf{策略} & \textbf{存活率(\%)} & \textbf{平均得分} & \textbf{最高得分} & \textbf{平均蛇长} \\
+		\hline
+		随机移动        & 12               & 45            & 120           & 7             \\
+		纯BFS        & 45               & 180           & 450           & 20            \\
+		纯A*         & 67               & 350           & 800           & 37            \\
+		A* + 安全评估   & 89               & 520           & 1250          & 54            \\
+		\hline
+	\end{tabularx}
 \end{table}
 
-结果在意料之中，但也暴露了一些问题。纯A*的67\%存活率看着还行，但仔细分析失败的33\%案例，绝大多数是因为A*找到的路径把蛇引向了死角——路径确实最短，但走到尽头后蛇被自己围住，无路可退。
+结果在意料之中但也有问题。纯A*的67\%存活率看着还行，但分析失败的33\%，大多数是因为A*找的路把蛇引向死角——路径确实最短，但走到尽头后蛇被自己围住。
 
-加上安全评估后存活率提升到89\%，但代价是平均路径变长了——安全评估倾向于选择"空间大"的方向而非"距离近"的方向，这在食物争夺效率上有所牺牲。有几局里蛇在地图边缘绕了很大一圈才找到食物，玩家如果看到会觉得很蠢。
+加安全评估后存活率到89\%，但平均路径变长了——安全评估倾向选"空间大"的方向而不是"距离近"的方向，食物争夺效率有所牺牲。有几局蛇在地图边缘绕了一大圈才找到食物，看着挺蠢的。
 
-最高得分1250对应的蛇长是127格，在40$\times$30的网格里占了约10\%的空间。再长下去食物生成就经常失败，进入"吃满地图"的终局阶段。
+最高得分1250对应蛇长127格，40$\times$30网格里占约10\%空间。空间占用率：
+\begin{equation}
+	\rho = \frac{L}{W \times H} \times 100\%
+\end{equation}
+$\rho$接近100\%时食物生成经常失败，进入"吃满地图"的终局。理论上蛇最大长度$W \times H - 1$（留一格给食物）。
 
-图6-4直观展示了四种策略的存活率和得分对比。可以看到安全评估函数的引入将存活率从67\%提升到了89\%，但最高得分的提升幅度更大（从800到1250），因为安全策略让蛇活得更久，从而有更多机会进食。
+图6-4直观展示了四种策略的对比。安全评估把存活率从67\%提到89\%，最高得分从800到1250提升更大，因为安全策略让蛇活得更久、有更多机会进食。
 
 \begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\linewidth]{pic/strategy_comparison.png}
-  \caption{不同AI策略存活率与得分对比}
+	\centering
+	\includegraphics[width=0.85\linewidth]{pic/strategy_comparison.png}
+	\caption{不同AI策略存活率与得分对比}
 \end{figure}
 
 \subsection{测试总结}
 
-测试覆盖了从单元级别到系统级别的验证。22个单元测试用例全部通过，功能测试验证了各模块的协同正确性。性能测试揭示了A*算法在高障碍物密度下的退化问题，策略对比则证明了安全评估函数对存活率的关键贡献。
+测试覆盖了单元到系统级别。22个单元测试全过，功能测试验证了协同正确性。性能测试揭示了高障碍物密度下A*的退化问题，策略对比量化了安全评估的贡献。
 
-坦率地说，测试做得还不够充分。压力测试（比如极端网格尺寸、超高帧率）没做，跨平台兼容性只在两台机器上跑过，交互测试也只覆盖了主要路径。如果要作为正式产品发布，这些都得补上。
+坦率说测试不够充分。压力测试（极端网格尺寸、超高帧率）没做，跨平台只在两台机器上跑过，交互测试也只覆盖了主要路径。要作为正式产品发布这些都得补。
