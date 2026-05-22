@@ -1,129 +1,40 @@
-﻿\hspace*{\fill}
+\hspace*{\fill}
 \section{相关技术介绍}
 
-\subsection{A*算法原理}
+本章首先将高校课程排课问题进行数学形式化描述，为后续讨论建立统一的符号语言；其次介绍本文所采用的核心技术——遗传算法的基本原理；最后简要介绍系统实现层面所使用的 Streamlit 与 Plotly 等工具。
 
-A*算法是一种启发式搜索算法，由Hart、Nilsson和Raphael于1968年首次提出\upcite{hart1968}。该算法在宽度优先搜索的基础上引入启发式评估函数，通过估算从当前状态到目标状态的最小代价来引导搜索方向，从而在保证最优性的同时大幅减少搜索空间。
+\subsection{排课问题的形式化定义}
 
-A*算法的核心是评估函数$f(n)$，定义为：
+为使后续算法描述更加清晰，本节先将问题以数学形式进行表述。给定教师集合 $T = \{t_1, t_2, \ldots, t_{|T|}\}$；教室集合 $R = \{r_1, r_2, \ldots, r_{|R|}\}$，其中每间教室都带有容量 $\mathrm{cap}(r)$ 和类型 $\mathrm{kind}(r)$；时间槽集合 $S = \{s_1, s_2, \ldots, s_{|S|}\}$，其中每个时间槽对应于"星期 $d$ 第 $p$ 节"；班级集合 $G = \{g_1, g_2, \ldots, g_{|G|}\}$，其中每个班级带有人数 $|g|$；以及课程集合 $K = \{k_1, k_2, \ldots, k_{|K|}\}$，其中每门课程 $k$ 指定了任课教师 $t(k) \in T$、教授班级集合 $G(k) \subseteq G$、周课时数 $w(k)$、所需教室类型 $\mathrm{kind}(k)$ 以及最小容量 $\mathrm{mincap}(k) = \sum_{g \in G(k)} |g|$。
 
-\begin{equation}
-f(n) = g(n) + h(n)
-\end{equation}
+把所有课程按周课时展开后，得到一个待排的课程实例集合 $L = \{\ell_1, \ell_2, \ldots, \ell_n\}$，其中 $n = \sum_{k \in K} w(k)$。排课问题的目标是为每一个课程实例 $\ell_i$ 指定一个时间槽 $s(\ell_i) \in S$ 和一间教室 $r(\ell_i) \in R$，使下列五类硬约束同时被满足：
 
-其中，$g(n)$表示从初始状态到当前状态的实际代价（已消耗的搜索深度或步数），$h(n)$表示从当前状态到目标状态的估计最小代价（启发式函数）。算法的搜索策略是总是扩展$f(n)$值最小的节点，这一策略保证了当$h(n)$满足可采纳性（Admissibility）条件时，A*算法能够找到最优解。
+\begin{align}
+\text{教师冲突约束}: \quad & \forall t \in T, \forall s \in S, \ |\{\ell : t(\ell) = t, s(\ell) = s\}| \leq 1 \\
+\text{教室冲突约束}: \quad & \forall r \in R, \forall s \in S, \ |\{\ell : r(\ell) = r, s(\ell) = s\}| \leq 1 \\
+\text{班级冲突约束}: \quad & \forall g \in G, \forall s \in S, \ |\{\ell : g \in G(\ell), s(\ell) = s\}| \leq 1 \\
+\text{教室容量约束}: \quad & \forall \ell \in L, \ \mathrm{cap}(r(\ell)) \geq \mathrm{mincap}(\ell) \\
+\text{教室类型约束}: \quad & \forall \ell \in L, \ \mathrm{kind}(r(\ell)) = \mathrm{kind}(\ell) \;\;\text{或}\;\; \mathrm{kind}(\ell) = \text{any}
+\end{align}
 
-可采纳性条件要求启发式函数$h(n)$不会高估从任意状态到目标状态的实际最小代价，即对于所有状态$n$，都有$h(n) \leq h^*(n)$，其中$h^*(n)$是实际最小代价。曼哈顿距离是满足这一条件的典型启发式函数。
+式 (2-1)\,--\,(2-3) 表征教师、教室、班级三类资源在同一时间槽内的互斥关系；式 (2-4) 与式 (2-5) 分别对应教室容量约束与类型约束。除上述硬约束之外，尚可定义一组"尽量满足"的软约束，例如教师偏好时间段、班级日课时上限、是否存在空堂、是否安排在当天末节等。将硬约束与软约束加权合并后即得目标函数 $f(\sigma)$，其中 $\sigma$ 表示一份完整的排课方案。排课问题即转化为在所有可能的 $\sigma$ 上求 $f$ 的最小值。
 
-然而，A*算法的主要问题在于内存消耗。对于推箱子这类状态空间指数级增长的问题，A*算法可能需要存储数百万个节点，导致内存溢出。
+由此可见，仅就式 (2-1)\,--\,(2-3) 三类资源冲突而言，该问题即可归约为图着色问题\upcite{2}，属于 NP-完全问题。因此在工程实践中需借助启发式或元启发式方法进行求解。
 
-\subsection{IDA*算法原理}
+\subsection{遗传算法基本原理}
 
-IDA*（Iterative Deepening A*，迭代加深A*）由Korf于1985年提出\upcite{korf1985}，该算法结合了深度优先搜索的低内存特性与A*算法的启发式引导能力，成为解决大规模搜索问题的利器。
+遗传算法是 Holland 于 1975 年提出的一类受生物进化启发的全局优化方法\upcite{1}。其核心思想可概括为：通过模拟"选择—交叉—变异"的自然进化过程，在解空间中维持一个种群，使适应度较高的个体以更大概率将其基因传递至下一代，从而使种群在迭代过程中持续向高质量解收敛。
 
-IDA*的核心思想是利用迭代加深（Iterative Deepening）技术逐步增加搜索深度限制。算法维护一个阈值$bound$，初始时设为启发式函数对初始状态的评估值$h(s_0)$。在每一次迭代中，算法执行深度优先搜索，只扩展$f(n) \leq bound$的节点。当搜索失败时，增加$bound$至所有被拒绝节点中的最小$f$值，并开始新的一轮迭代。
+一个标准的 GA 通常由染色体编码、适应度函数、选择算子、交叉算子、变异算子以及精英保留等关键要素构成。染色体编码（Encoding）将一个候选解表示为一条线性的"染色体"，常见编码方式包括二进制、整数、实数与排列等，编码方式的选择决定了搜索空间的结构，对算法性能具有重要影响。适应度函数（Fitness Function）用于衡量个体的优劣，对于带约束的优化问题，通常采用罚函数将约束违反折算至目标函数中。选择算子（Selection）按某种概率分布从当前种群中抽取若干个体作为父代，常见方法包括轮盘赌选择、锦标赛选择与排名选择等；交叉算子（Crossover）将两个父代的基因进行重组以生成子代，常见方式包括单点、两点与均匀交叉等；变异算子（Mutation）则以较小概率随机改变染色体上若干基因的取值，用于避免种群过早陷入局部最优。精英保留（Elitism）在每一代中将当前种群中最优的若干个体不经任何修改直接保留至下一代，以防止最优解在进化过程中被意外破坏。
 
-IDA*的工作流程如下：
+GA 的主要优势在于通用性强，几乎所有可由染色体表示的问题均可套用其框架。其代价是收敛速度通常慢于针对特定问题设计的专用算法，且参数 (种群规模、交叉率、变异率等) 需要根据具体问题进行调整。对于排课这类约束密集、解空间庞大但又允许并行评估的问题，GA 是一种较为自然的求解工具\upcite{4,11}。
 
-\begin{algorithm}[H]
-\caption{IDA*算法}
-\DontPrintSemicolon
-\SetAlgoLined
-\KwIn{初始状态$s_0$，目标测试$Goal(s)$，启发式函数$h(s)$}
-\KwOut{解决方案或失败}
+\subsection{Streamlit 与 Plotly}
 
-$bound \leftarrow h(s_0)$\;
-\While{$true$}{
-    $t \leftarrow search(s_0, 0, bound)$\;
-    \If{$t = FOUND$}{\Return{解决方案}}
-    \If{$t = \infty$}{\Return{失败}}
-    $bound \leftarrow t$\;
-}
+系统的可视化界面采用 Streamlit 框架实现。Streamlit 的特点在于将传统 Web 开发中前端、后端与路由相关的复杂性完全屏蔽，开发者仅需以 Python 编写脚本，调用 \texttt{st.title}、\texttt{st.dataframe}、\texttt{st.plotly\_chart} 等函数即可构建一个交互式 Web 应用\upcite{14}。这种"脚本即应用"的开发模式特别适用于算法演示与数据探索类工具型项目，仅需数十行 Python 代码即可构建出较为完整的可视化界面。
 
-\BlankLine
-\textbf{Procedure} $search(s, g, bound)$:\;
-\Indp
-    $f \leftarrow g + h(s)$\;
-    \If{$f > bound$}{\Return{$f$}}
-    \If{$Goal(s)$}{\Return{$FOUND$}}
-    $min \leftarrow \infty$\;
-    \ForEach{$s'$ in successors($s$)}{
-        $t \leftarrow search(s', g + 1, bound)$\;
-        \If{$t = FOUND$}{\Return{$FOUND$}}
-        \If{$t < min$}{$min \leftarrow t$}
-    }
-    \Return{$min$}\;
-\Indm
-\end{algorithm}
+在图表层面，本系统选用 Plotly 来渲染收敛曲线、热力图等交互式图表。相较于 Matplotlib，Plotly 自带缩放、悬停提示、图例切换等交互能力，对用户更为友好，同时也可无缝嵌入 Streamlit 应用之中。对于论文中需要静态展示的算法说明图、参数敏感性分析图等，则采用 Matplotlib 的 Agg 后端离线生成 PNG 文件，便于嵌入 \LaTeX\ 文档。
 
-IDA*算法的主要优势在于其极低的内存开销。由于采用深度优先搜索策略，算法只需维护当前搜索路径上的节点信息，内存复杂度为$O(d)$，其中$d$为解的深度。相比之下，A*算法的内存复杂度为$O(b^d)$，其中$b$为分支因子。
+\subsection{开发环境}
 
-对于推箱子问题，IDA*算法相比A*的优势尤为明显。推箱子的状态空间极大，一个包含5个箱子的关卡可能产生数百万种不同的状态，使用A*算法很快就会耗尽内存，而IDA*算法可以在有限的内存内完成搜索。
-
-\subsection{Zobrist Hashing技术}
-
-Zobrist Hashing是一种高效的哈希技术，由Albert Zobrist于1970年提出\upcite{zobrist1970}，广泛用于棋类游戏和推箱子等离散状态空间的搜索问题中。该技术的核心思想是为每个可能的状态元素分配一个随机哈希值，并通过异或（XOR）运算组合这些值来计算整体状态哈希。
-
-对于推箱子问题，Zobrist哈希的构造如下：
-
-假设地图高度为$H$，宽度为$W$，箱子数量为$N$。首先预先生成以下随机数表：
-
-\begin{itemize}
-\item $BoxTable[y][x][i]$：表示第$i$个箱子位于位置$(x, y)$时的哈希值
-\item $PlayerTable[y][x]$：表示玩家位于位置$(x, y)$时的哈希值
-\end{itemize}
-
-每个随机数都是一个64位无符号整数。然后，状态的Zobrist哈希值$H(s)$通过以下公式计算：
-
-\begin{equation}
-H(s) = \bigoplus_{i=1}^{N} BoxTable[box_i.y][box_i.x][i] \oplus PlayerTable[player.y][player.x]
-\end{equation}
-
-其中$\oplus$表示异或运算。
-
-Zobrist哈希的主要优势在于其增量更新特性。当状态发生改变时（如移动箱子），只需将旧位置的哈希值与新位置的哈希值进行异或操作即可，无需重新计算整个状态的哈希值。这使得哈希表查询的时间复杂度为$O(1)$，非常适合在搜索过程中进行大量的状态查重操作。
-
-\subsection{推箱子问题的形式化定义}
-
-推箱子问题可形式化地定义为一个八元组$(S, s_0, S_g, A, g, h, d, F)$：
-
-\begin{itemize}
-\item $S$：所有可能状态的集合
-\item $s_0 \in S$：初始状态
-\item $S_g \subseteq S$：目标状态集合（所有箱子都在目标点上）
-\item $A = \{up, down, left, right\}$：玩家可执行的动作集合
-\item $g: S \times A \rightarrow S \cup \{\bot\}$：状态转移函数，$\bot$表示无效动作
-\item $h: S \rightarrow \mathbb{N} \cup \{\infty\}$：启发式函数
-\item $d: S \rightarrow \{true, false\}$：死锁检测函数
-\item $F$：所有合法状态的集合（排除死锁状态）
-\end{itemize}
-
-状态$s \in S$由二元组$(B, P)$表示，其中$B = \{b_1, b_2, ..., b_n\}$是箱子位置的集合，$P$是玩家位置的单一坐标。目标的定义如下：
-
-\begin{equation}
-S_g = \{s = (B, P) \mid \forall b_i \in B, b_i \in T\}
-\end{equation}
-
-其中$T$是目标位置的集合。
-
-死锁状态$d(s) = true$当且仅当状态$s$无法继续到达任何目标状态。常见的死锁情况包括：
-
-\begin{itemize}
-\item 角落死锁：箱子位于角落且该角落不是目标点
-\item 并排死锁：两个箱子靠墙并排，且无法被分开推动
-\item 隧道死锁：箱子进入狭窄通道后无法转向
-\end{itemize}
-
-\subsection{匈牙利算法}
-
-匈牙利算法（Hungarian Algorithm）是一种组合优化算法，用于求解指派问题（Assignment Problem）的最优解。该算法由Harold Kuhn于1955年提出\upcite{kuhn1955}，后在1965年由James Munkres进行了改进和完善，因此也称为Kuhn-Munkres算法。
-
-在推箱子问题的启发式函数设计中，匈牙利算法可用于求解箱子与目标之间的最小权完美匹配。具体而言，对于$n$个箱子和$n$个目标，我们需要找到一个匹配使得所有箱子到其匹配目标的曼哈顿距离之和最小。
-
-给定一个$n \times n$的成本矩阵$C$，其中$C[i][j]$表示第$i$个箱子到第$j$个目标的曼哈顿距离，匈牙利算法的目标是找到一个完美匹配$\pi$使得总成本最小：
-
-\begin{equation}
-\min_{\pi} \sum_{i=1}^{n} C[i][\pi(i)]
-\end{equation}
-
-匈牙利算法的时间复杂度为$O(n^3)$，对于推箱子问题中的中等规模实例（如10个箱子以内）可以快速求解。该算法与曼哈顿距离启发式结合使用，可以有效提升启发式函数的一致性（consistency），从而减少IDA*搜索过程中扩展的节点数量。
+整个系统基于 Python 3.13 开发，主要依赖包括 NumPy 1.x、pandas 2.x、Matplotlib 3.x、Plotly 5.x、Streamlit 1.x 以及用于自动化截图的 Playwright。代码部分约 1100 行；论文部分基于安徽三联学院本科毕业论文 \LaTeX\ 模板，采用 XeLaTeX 进行编译。开发与测试均在普通笔记本电脑上完成 (Intel i5 处理器, 16 GB 内存, Windows 11)，未使用任何 GPU 加速。

@@ -1,118 +1,145 @@
-﻿% ================= 文档用途说明 =================
+% ================= 文档用途说明 =================
 %{
 %   模板来源：安徽三联学院 马仲军老师 编写
 %   GitHub：https://github.com/mayanzu/LaTeX-Template-of-SLU
 %
-%   模板用途：本科毕业论文LaTeX模板，基于XeLaTeX编译
+%   本论文题目：基于遗传算法的高校自动化排课与冲突检测系统
+%   作者：[作者姓名]   学号：[学号]   指导教师：[导师姓名]
+%   编译器：必须使用 XeLaTeX（不能用 PDFLaTeX / LuaLaTeX）
 %
-%   【目录结构】
-%     cover/        - 封面文件夹，放入封面.tex文件
-%     abstract/     - 摘要文件夹，放入摘要.tex文件
-%     body/         - 章节正文文件夹，放入各章节.tex文件（1.tex~7.tex）
-%     acknowledge/  - 致谢文件夹，放入致谢.tex文件
-%     pic/          - 图片文件夹，放入所有用到的图片
+%   ----------------------------------------------------------------
+%   【一、目录结构】
+%     cover/        - 封面 (cover_cyber.tex)
+%     abstract/     - 中英文摘要 (abstract.tex)
+%     body/         - 章节正文 (1.tex ~ 7.tex)
+%     acknowledge/  - 致谢 (acknowledge.tex)
+%     pic/          - 图片资源（PNG，由 code/generate_thesis_figures.py
+%                     与 code/capture_screenshots.py 自动生成）
 %
-%   【文件对应关系】
-%     main.tex      - 主文件，编译入口，不要删除开头的注释说明
-%     cover/cover_cyber.tex  - 封面内容，修改这里调整封面样式
-%     abstract/abstract.tex  - 中文摘要内容
-%     body/1.tex    - 第一章：绪论
-%     body/2.tex    - 第二章：相关技术介绍
-%     body/3.tex    - 第三章：系统需求分析与总体设计
-%     body/4.tex    - 第四章：A*寻路算法设计与优化
-%     body/5.tex    - 第五章：系统详细设计与实现
-%     body/6.tex    - 第六章：系统测试与结果分析
-%     body/7.tex    - 第七章：总结与展望
-%     acknowledge/acknowledge.tex  - 致谢内容
+%   【二、章节对应】
+%     body/1.tex    第一章 绪论
+%     body/2.tex    第二章 相关技术介绍
+%     body/3.tex    第三章 系统需求分析与总体设计
+%     body/4.tex    第四章 遗传算法设计与优化
+%     body/5.tex    第五章 系统详细设计与实现
+%     body/6.tex    第六章 系统测试与结果分析
+%     body/7.tex    第七章 总结与展望
 %
-%   【编译方式】
-%     必须使用XeLaTeX编译器编译，不能用PDFLaTeX或LuaLaTeX
-%     在VS Code中：安装LaTeX Workshop插件，按Ctrl+Alt+B编译
-%     命令行方式：xelatex main.tex（需要多次运行生成目录和引用）
+%   ----------------------------------------------------------------
+%   【三、编译方式】
+%     VS Code：装 LaTeX Workshop 插件，Ctrl+Alt+B
+%     命令行：xelatex main.tex 连跑两次（首跑生成 .aux/.toc，
+%             再跑解析图表与文献交叉引用）
 %
-%   【图片插入方法】
-%     \includegraphics[width=0.8\textwidth]{pic/图片文件名}
-%     图片文件放入pic/文件夹，使用相对路径引用
-%     建议使用PNG或PDF格式，EPS格式可能需要不同处理
+%   ----------------------------------------------------------------
+%   【四、本论文遵守的写作 / 排版规范】（重要，二次编辑请保持一致）
 %
-%   【文献引用方法】
-%     在thebibliography环境中手动添加引用条目
-%     引用格式：\bibitem[1]{ref1}作者. 题目[J]. 期刊, 年份.
-%     文中引用：\upcite{1} 会在文中显示上标[1]
+%   1) 段落 / 标题层级
+%      仅使用 \section / \subsection / \subsubsection 三层。
+%      不使用 \paragraph、\subparagraph —— 模板未配置其样式。
+%      短分点请用 \subsubsection 或 "\textbf{X}：内容"（仅模板已使用
+%      的位置），避免在段首加 \textbf 造成无首行缩进。
 %
-%   【常见转义字符】
-%     \#  - 生成井号 #
-%     \$  - 生成美元符号 $（用于数学公式内另当别论）
-%     \%  - 生成百分号 %（用于注释另当别论）
-%     \&  - 生成连字符 &
-%     \_  - 生成下划线 _
-%     \{  - 生成左花括号 {
-%     \}  - 生成右花括号 }
-%     \S  - 生成章节号 §
-%     \P  - 生成段落号 ¶
-%     \dag - 生成剑号 †
-%     \ddag - 生成双剑号 ‡
+%   2) 列表
+%      不使用 \begin{itemize} / \begin{enumerate}，全部以散文叙述。
+%      也避免 "其一/其二"、"一是/二是/三是"、"首先/其次/第三"、
+%      "第一/第二/.../第五" 等罗列式连接词，改用 "在……层面"、
+%      "其中"、"同时"、"此外" 等自然衔接。
 %
-%   【如何在正文输入%符号】
-%     方法一：\verb|%|
-%     方法二：\texttt{\%}
-%     方法三（仅用于数学公式中）：\# 即可
+%   3) 公式编号
+%      章节-序号格式（如 4-7、2-3），由 \theequation 自动生成。
+%      不用 \tag 自定义编号（如 \tag{H1}）。
+%      行内公式用 $...$，行间公式用 \begin{equation} ... \end{equation}，
+%      多行联立用 \begin{align}（无 \tag）。
 %
-%   【特殊符号】（需加载amssymb宏包）
-%     \checkmark  - √ 对勾
-%     \star      - ★ 五角星
-%     \diamond   - ◆ 菱形
-%     \blacksquare - ■ 黑方块
-%     \triangle - △ 三角形
-%     \circ     - ○ 空心圆
-%     \bullet   - ● 实心圆点
-%     \infty    - ∞ 无穷大
+%   4) 图、表编号
+%      图：figure 环境 + \caption + \label，编号为 章节-序号。
+%      图片内部不要再写 "图 X-X" 标题——LaTeX caption 已经标了。
+%      表：tabularx 环境，宽度 \linewidth，三线表样式（\hline 三道）。
 %
-%   【代码块插入方法】
-%     \begin{lstlisting}[language=python]
-%     your code here
-%     \end{lstlisting}
-%     language参数可选：python, java, c, cpp, matlab等
+%   5) 算法伪代码
+%      algorithm2e 环境，选项已设为 ruled,lined,linesnumbered；
+%      \DontPrintSemicolon、\SetAlgoLined、\KwIn / \KwOut；
+%      控制流用 \For / \ForEach / \While / \eIf / \Return；
+%      行尾以 \; 结束。算法编号为全局递增（算法 1、算法 2）。
 %
-%   【表格使用方法】（本模板使用tabularx表格，自动适应页面宽度）
+%   6) 引用
+%      正文上标式：\upcite{编号}，会渲染为 [n]。
+%      参考文献条目维护在文末 thebibliography 环境中。
 %
-%     标准格式：
+%   7) 字体 / 中文加粗
+%      已开启 \xeCJKsetup{AutoFakeBold=true}，使 \textbf{中文} 真实
+%      加粗（默认宋体不带粗体字重）。若发现中文加粗失效，先检查这一行。
+%
+%   ----------------------------------------------------------------
+%   【五、转义字符速查】
+%     \#  → #     \$  → $     \%  → %     \&  → &
+%     \_  → _     \{  → {     \}  → }     \S  → §
+%     \P  → ¶     \dag → †    \ddag → ‡
+%     正文输入 % 三种方式：\verb|%|、\texttt{\%}、数学环境内 \%
+%
+%   【六、特殊符号】（已加载 amssymb）
+%     \checkmark √   \star ★   \blacksquare ■   \triangle △
+%     \circ ○        \bullet ●  \infty ∞         \diamond ◆
+%
+%   ----------------------------------------------------------------
+%   【七、模板用法示例】
+%
+%   插入图片：
+%     \begin{figure}[H]
+%       \centering
+%       \includegraphics[width=0.85\linewidth]{pic/xxx.png}
+%       \caption{图标题}
+%       \label{fig:xxx}
+%     \end{figure}
+%
+%   插入表格：
 %     \begin{table}[H]
 %       \centering
-%       \caption{表格标题}
-%       \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+%       \caption{表标题}
+%       \label{tab:xxx}
+%       \begin{tabularx}{\linewidth}{l X l}
 %         \hline
-%         \textbf{列标题1} & \textbf{列标题2} & \textbf{列标题3} \\
+%         \textbf{列1} & \textbf{列2} & \textbf{列3} \\
 %         \hline
-%         内容1-1 & 内容1-2 & 内容1-3 \\
-%         内容2-1 & 内容2-2 & 内容2-3 \\
+%         a & b & c \\
 %         \hline
 %       \end{tabularx}
 %     \end{table}
 %
-%     参数说明：
-%       tabularx 环境 - 表格总宽度自动匹配页面宽度
-%       \linewidth    - 当前行可用宽度
-%       X             - 自动扩展的列（可填满剩余空间）
-%       >{\raggedright\arraybackslash}X - 左对齐的自动列
-%       >{\centering\arraybackslash}X    - 居中对齐的自动列
-%       \hline  - 画横线
-%       [H]     - 强制将表格放在当前位置
+%   插入代码：
+%     \begin{lstlisting}[language=python,caption={脚本说明}]
+%     code here ...
+%     \end{lstlisting}
 %
-%     单元格内换行：
-%       \makecell{第一行\\第二行}
-%       需导入\usepackage{makecell}
+%   插入算法：
+%     \begin{algorithm}[!ht]
+%     \caption{算法标题}\label{algo:xxx}
+%     \DontPrintSemicolon \SetAlgoLined
+%     \KwIn{输入}
+%     \KwOut{输出}
+%     \For{...}{...\;}
+%     \Return{...}\;
+%     \end{algorithm}
 %
-%   【数学公式注意点】
-%     行内公式用 $...$ 或 \(...\)
-%     行间公式用 \[...\] 或 \begin{equation}...\end{equation}
-%     多行公式用 align 环境，编号用 tag
+%   ----------------------------------------------------------------
+%   【八、本项目附属脚本】
+%     code/generate_thesis_figures.py
+%         生成所有算法配图（流程图、染色体编码示意、架构图、收敛对比、
+%         基线对比等）。新增 / 修改算法配图时编辑此脚本后重新运行：
+%             python generate_thesis_figures.py
+%         输出至 thesis/pic/
+%     code/capture_screenshots.py
+%         Playwright 驱动无头 Chromium，自动遍历 Streamlit UI 的六个
+%         页面并截图，输出至 thesis/pic/ui_*.png
+%         先 streamlit run code/ui/app.py，再运行该脚本。
 %}
 
 \documentclass[10pt,a4paper]{ctexart}
 
 \usepackage{iftex}
 \usepackage{xeCJK}
+\xeCJKsetup{AutoFakeBold=true}
 \usepackage{gbt7714}
 \usepackage{amsmath,amsthm,amssymb,amsfonts,mathrsfs,mathtools}
 \usepackage{graphicx,caption,float}
@@ -136,8 +163,6 @@
 \usepackage{algorithmic}
 \SetKw{Continue}{continue}
 \SetAlFnt{\small}
-\SetAlgoBreakAlgos
-\setlength{\algomaxheight}{0pt}
 \usepackage{listings,lstautogobble}
 \usepackage{makecell}
 \usepackage{underscore}
@@ -193,7 +218,6 @@
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
 
 \lstset{
   commentstyle= \color{red!50!green!50!blue!50},
@@ -285,7 +309,6 @@
 
 
 %--------------------开始正文部分--------------------------%
-
 \begin{document}
 
 \thispagestyle{empty}
@@ -305,7 +328,7 @@
 \hspace*{\fill}
 \pagestyle{body}
 \tableofcontents
-\newpage
+\clearpage
 \setcounter{page}{1}
 \pagenumbering{arabic}
 \pagestyle{body}
@@ -320,33 +343,34 @@
 	\newpage\input{"body/7.tex"}
 \end{sloppypar}
 
-\newpage
+\clearpage
 \hspace*{\fill}
 \addcontentsline{toc}{section}{参考文献}
 \heiti
 \begin{thebibliography}{99}
 	\large
 	\setlength{\itemsep}{1.5pt}
-	\bibitem[1]{ref1}Hart P E, Nilsson N J, Raphael B. A formal basis for the heuristic determination of minimum cost paths[J]. IEEE Transactions on Systems Science and Cybernetics, 1968, 4(2): 100-107.
-	\bibitem[2]{ref2}Russell S, Norvig P. Artificial Intelligence: A Modern Approach[M]. 4th ed. Pearson, 2020.
-	\bibitem[3]{ref3}Dechter R, Pearl J. Generalized best-first search strategies and the optimality of A*[J]. Journal of the ACM, 1985, 32(3): 505-536.
-	\bibitem[4]{ref4}严蔚敏, 吴伟民. 数据结构（C语言版）[M]. 北京: 清华大学出版社, 2011.
-	\bibitem[5]{ref5}Cui X, Shi H. A*-based pathfinding in modern computer games[C]//International Conference on Computer Science and Education, 2011: 17-22.
-	\bibitem[6]{ref6}Sturtevant N R. Benchmarks for grid-based pathfinding[J]. IEEE Transactions on Computational Intelligence and AI in Games, 2012, 4(2): 144-148.
-	\bibitem[7]{ref7}王晓东. 计算机算法设计与分析[M]. 5版. 北京: 电子工业出版社, 2018.
-	\bibitem[8]{ref8}LaValle S M. Planning Algorithms[M]. Cambridge University Press, 2006.
-	\bibitem[9]{ref9}Patel A. Amit's A* Pages[EB/OL]. http://theory.stanford.edu/~amitp/GameProgramming/, 2023.
-	\bibitem[10]{ref10}Rabin S. A* speed optimizations[J]. Game Programming Gems, 2000: 272-287.
-	\bibitem[11]{ref11}张铭, 王腾蛟, 赵海燕. 数据结构与算法[M]. 北京: 高等教育出版社, 2008.
-	\bibitem[12]{ref12}Sweetman G. Python游戏编程入门[M]. 北京: 人民邮电出版社, 2019.
-	\bibitem[13]{ref13}Matthes E. Python编程：从入门到实践[M]. 2版. 北京: 人民邮电出版社, 2020.
-	\bibitem[14]{ref14}Millington I. Artificial Intelligence for Games[M]. 3rd ed. CRC Press, 2019.
-	\bibitem[15]{ref15}Buckland M. Programming Game AI by Example[M]. Wordware Publishing, 2005.
-	\bibitem[16]{ref16}Higgins C M. A comparison of algorithms for pathfinding on grid maps[D]. University of Edinburgh, 2009.
-	\bibitem[17]{ref17}Nash A, Koenig S, Tovey C. Lazy Theta*: Any-angle path planning and path length analysis in 3D[C]//Proceedings of the AAAI Conference on Artificial Intelligence, 2010.
-	\bibitem[18]{ref18}何斌, 马天予, 王运坚. Visual C++数字图像处理[M]. 北京: 人民邮电出版社, 2001.
-	\bibitem[19]{ref19}Sweigart A. Making Games with Python \& Pygame[M]. CreateSpace, 2012.
-	\bibitem[20]{ref20}Yampolskiy R V. Game playing[J]. Wiley Encyclopedia of Computer Science and Engineering, 2008.
+	\bibitem[1]{ref1}Holland J H. Adaptation in Natural and Artificial Systems[M]. Ann Arbor: University of Michigan Press, 1975.
+	\bibitem[2]{ref2}Cooper T B, Kingston J H. The complexity of timetable construction problems[C]//International Conference on the Practice and Theory of Automated Timetabling, 1995: 281-295.
+	\bibitem[3]{ref3}Goldberg D E. Genetic Algorithms in Search, Optimization, and Machine Learning[M]. Boston: Addison-Wesley, 1989.
+	\bibitem[4]{ref4}Colorni A, Dorigo M, Maniezzo V. Genetic algorithms and highly constrained problems: the time-table case[C]//Parallel Problem Solving from Nature (PPSN I), 1991: 55-59.
+	\bibitem[5]{ref5}Schaerf A. A survey of automated timetabling[J]. Artificial Intelligence Review, 1999, 13(2): 87-127.
+	\bibitem[6]{ref6}Chen M C, Sze S N, Goh S L, Sabar N R, Kendall G. A survey of university course timetabling problem: perspectives, trends and opportunities[J]. IEEE Access, 2021, 9: 106515-106529.
+	\bibitem[7]{ref7}Burke E K, Newall J P. A multistage evolutionary algorithm for the timetable problem[J]. IEEE Transactions on Evolutionary Computation, 1999, 3(1): 63-74.
+	\bibitem[8]{ref8}Yu E, Sung K S. A genetic algorithm for a university weekly courses timetabling problem[J]. International Transactions in Operational Research, 2002, 9(6): 703-717.
+	\bibitem[9]{ref9}Moscato P. On Evolution, Search, Optimization, Genetic Algorithms and Martial Arts: Towards Memetic Algorithms[R]. Caltech Concurrent Computation Program Report 826, 1989.
+	\bibitem[10]{ref10}林冬梅, 王东. 高校排课系统中的算法研究[J]. 计算机工程与设计, 2007, 28(20): 4942-4944.
+	\bibitem[11]{ref11}王小平, 曹立明. 遗传算法——理论、应用与软件实现[M]. 西安: 西安交通大学出版社, 2002.
+	\bibitem[12]{ref12}周明, 孙树栋. 遗传算法原理及应用[M]. 北京: 国防工业出版社, 1999.
+	\bibitem[13]{ref13}陈晋音, 何辉豪. 基于改进遗传算法的高校排课系统[J]. 浙江工业大学学报, 2014, 42(5): 533-538.
+	\bibitem[14]{ref14}Streamlit Inc. Streamlit Documentation[EB/OL]. https://docs.streamlit.io/, 2025.
+	\bibitem[15]{ref15}De Jong K A. Analysis of the Behaviour of a Class of Genetic Adaptive Systems[D]. Ann Arbor: University of Michigan, 1975.
+	\bibitem[16]{ref16}Abdipoor S, Yaakob R, Goh S L, et al. Meta-heuristic approaches for the University Course Timetabling Problem[J]. Intelligent Systems with Applications, 2023, 19: 200253.
+	\bibitem[17]{ref17}Bashab A, Ibrahim A O, Hashem I A T, et al. Optimization techniques in University Timetabling Problem: constraints, methodologies, benchmarks, and open issues[J]. Computers, Materials \& Continua, 2023, 74(3): 6461-6484.
+	\bibitem[18]{ref18}Davison M, Kheiri A, Zografos K G. Modelling and solving the university course timetabling problem with hybrid teaching considerations[J]. Journal of Scheduling, 2025, 28(2): 195-215.
+	\bibitem[19]{ref19}Rappos E, Thiémard E, Robert S, Hêche J F. A mixed-integer programming approach for solving university course timetabling problems[J]. Journal of Scheduling, 2022, 25(4): 391-404.
+	\bibitem[20]{ref20}Thepphakorn T, Pongcharoen P. Modified and hybridised bi-objective firefly algorithms for university course scheduling[J]. Soft Computing, 2023, 27(14): 9735-9772.
+	\bibitem[21]{ref21}Carlsson M, Ceschia S, Di Gaspero L, Mikkelsen R Ø, Schaerf A, Stidsen T. Exact and metaheuristic methods for a real-world examination timetabling problem[J]. Journal of Scheduling, 2023, 26(4): 353-367.
 \end{thebibliography}
 
 \normalfont
@@ -355,6 +379,3 @@
 \end{sloppypar}
 
 \end{document}
-
-
-

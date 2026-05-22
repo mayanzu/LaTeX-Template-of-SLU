@@ -1,154 +1,276 @@
 \hspace*{\fill}
 
-\section{系统测试与结果分析}
+\section{系统详细设计与实现}
 
-\subsection{测试环境与数据集}
+本章描述系统的代码组织结构、关键模块的具体实现，以及 Streamlit Web UI 各页面的设计。
 
-系统测试在以下环境进行：
+\subsection{项目目录结构}
 
-\begin{itemize}
-\item 操作系统：Windows 11 Pro
-\item 处理器：Intel Core i7-12700H
-\item 内存：16GB DDR5
-\item 编译器：GCC 13.2.0 (MSYS2)
-\item 编译优化：-O2
-\end{itemize}
+系统按"算法\,/\,UI"两部分组织，二者之间通过纯 Python 数据结构通信，不涉及任何 Web 框架层面的耦合。完整目录结构如下：
 
-测试关卡选取经典的Microban关卡集，该关卡集按难度分为三个梯队：
+\begin{lstlisting}[language=bash,caption={项目目录结构}]
+遗传算法排课系统/
+├── code/
+│   ├── scheduler/             # 算法核心
+│   │   ├── __init__.py
+│   │   ├── models.py          # 数据模型 (Course/Teacher/...)
+│   │   ├── data.py            # 模拟数据集
+│   │   ├── operators.py       # GA 算子 (init / select / cross / mutate)
+│   │   ├── fitness.py         # 适应度评估
+│   │   ├── conflict.py        # 冲突检测器
+│   │   └── ga.py              # GA 主循环
+│   ├── ui/
+│   │   └── app.py             # Streamlit Web UI
+│   ├── smoke_test.py          # 命令行冒烟测试
+│   ├── capture_screenshots.py # 自动化截图脚本
+│   ├── generate_thesis_figures.py  # 论文配图生成
+│   └── requirements.txt
+└── thesis/                    # LaTeX 论文
+    ├── main.tex
+    ├── body/ ...
+    └── pic/                   # 论文配图与系统截图
+\end{lstlisting}
 
-\begin{itemize}
-\item 简单关卡（Level 1-5）：2-3个箱子，适合验证基本功能
-\item 中等关卡（Level 6-10）：3-4个箱子，测试启发式函数效果
-\item 困难关卡（Level 11-15）：4-5个箱子，验证死锁检测和优化效果
-\end{itemize}
+\subsection{数据模型实现}
 
-\subsection{启发式函数对比实验}
+数据模型均以 \texttt{@dataclass(frozen=True)} 进行装饰，使其不可变且可哈希，从而能够在 GA 进化过程中作为"值类型"安全地在父代与子代之间共享。
 
-为评估不同启发式函数的效果，设计了对比实验。实验记录每种启发式函数在相同关卡上的表现，包括扩展节点数、求解时间和解决方案步数。
+\begin{lstlisting}[language=python,caption={核心数据模型 (\texttt{models.py} 节选)}]
+@dataclass(frozen=True)
+class Course:
+    id: str
+    name: str
+    teacher_id: str
+    class_ids: Tuple[str, ...]
+    weekly_lessons: int
+    required_kind: str    # "lecture" / "lab" / "multimedia" / "any"
+    min_capacity: int
 
-\begin{table}[H]
-\centering
-\caption{不同启发式函数性能对比（简单关卡）}
-\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-\hline
-\textbf{关卡ID} & \textbf{启发式} & \textbf{扩展节点数} & \textbf{求解时间(ms)} & \textbf{步数} \\
-\hline
-Level 1 & Manhattan & 156 & 12 & 18 \\
-Level 1 & MWPM & 89 & 8 & 18 \\
-Level 1 & LinearConflict & 78 & 9 & 18 \\
-\hline
-Level 2 & Manhattan & 2341 & 156 & 42 \\
-Level 2 & MWPM & 1203 & 89 & 42 \\
-Level 2 & LinearConflict & 1056 & 78 & 42 \\
-\hline
-Level 3 & Manhattan & 4562 & 312 & 67 \\
-Level 3 & MWPM & 2156 & 178 & 67 \\
-Level 3 & LinearConflict & 1890 & 156 & 67 \\
-\hline
-\end{tabularx}
-\end{table}
+@dataclass(frozen=True)
+class Lesson:
+    """一节课的实例 (Course 按 weekly_lessons 展开后得到)。"""
+    lesson_id: int
+    course_id: str
+    teacher_id: str
+    class_ids: Tuple[str, ...]
+    required_kind: str
+    min_capacity: int
 
-实验结果表明，最小权完美匹配（MWPM）启发式相比曼哈顿距离平均减少约45\%的节点扩展，线性冲突启发式减少约50\%。这是因为MWPM考虑了箱子与目标的最优配对，避免了箱子被推到次优目标后需要重新调整的情况。
+@dataclass
+class Schedule:
+    """完整排课方案：每个基因 = (slot_idx, room_idx)。"""
+    genes: List[Tuple[int, int]]
+    instance: ProblemInstance
+\end{lstlisting}
 
-\subsection{死锁检测效果分析}
+\subsection{冲突检测器实现}
 
-死锁检测是提升搜索效率的关键优化。本节通过消融实验验证死锁检测的效果。
+冲突检测器采用"按时间槽分桶"的方式工作：先将所有基因按时间槽分组，然后在每个桶内以 $O(b^2)$ 的复杂度检查教师、教室、班级是否在同一时段被重复使用。对于不依赖时间的容量与教室类型两类约束，则对每个基因独立判断。
 
-\begin{table}[H]
-\centering
-\caption{死锁检测效果对比}
-\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-\hline
-\textbf{关卡ID} & \textbf{算法配置} & \textbf{扩展节点数} & \textbf{求解时间(ms)} & \textbf{剪枝率} \\
-\hline
-Level 5 & IDA* (无死锁检测) & 2,345,678 & 45,231 & - \\
-Level 5 & IDA* (有死锁检测) & 1,567,234 & 28,456 & 33.2\% \\
-\hline
-Level 8 & IDA* (无死锁检测) & 5,678,901 & 98,765 & - \\
-Level 8 & IDA* (有死锁检测) & 2,890,123 & 45,678 & 49.1\% \\
-\hline
-Level 10 & IDA* (无死锁检测) & 12,345,678 & 234,567 & - \\
-Level 10 & IDA* (有死锁检测) & 5,234,567 & 89,234 & 57.6\% \\
-\hline
-\end{tabularx}
-\end{table}
+\begin{lstlisting}[language=python,caption={冲突检测主循环 (\texttt{conflict.py} 节选)}]
+def detect(self, schedule: Schedule) -> ConflictReport:
+    rep = ConflictReport()
+    inst = self.instance
 
-死锁检测的平均剪枝率达到40\%以上，有效减少了无效搜索。不同关卡的剪枝率差异主要取决于地图结构中死锁状态的出现频率。
+    by_slot = defaultdict(list)
+    for i, (slot_i, _room_i) in enumerate(schedule.genes):
+        by_slot[slot_i].append(i)
 
-\subsection{IDA*与A*内存使用对比}
+    for slot_i, lesson_ids in by_slot.items():
+        seen_teacher, seen_room, seen_class = {}, {}, {}
+        for lid in lesson_ids:
+            lesson = inst.lessons[lid]
+            _, room_i = schedule.genes[lid]
+            if lesson.teacher_id in seen_teacher:
+                rep.teacher_clashes.append((seen_teacher[lesson.teacher_id], lid))
+            else:
+                seen_teacher[lesson.teacher_id] = lid
+            if room_i in seen_room:
+                rep.room_clashes.append((seen_room[room_i], lid))
+            else:
+                seen_room[room_i] = lid
+            for cls in lesson.class_ids:
+                if cls in seen_class:
+                    rep.class_clashes.append((seen_class[cls], lid))
+                else:
+                    seen_class[cls] = lid
+    # 容量与教室类型检查
+    for i, (_slot_i, room_i) in enumerate(schedule.genes):
+        lesson, room = inst.lessons[i], inst.room_by_index(room_i)
+        if room.capacity < lesson.min_capacity:
+            rep.capacity_violations.append(i)
+        if lesson.required_kind != "any" and room.kind != lesson.required_kind:
+            rep.room_kind_violations.append(i)
+    return rep
+\end{lstlisting}
 
-本节对比IDA*与A*算法在内存使用方面的差异。由于A*在处理中等规模关卡时即会因内存不足而失败，实验仅在简单关卡上进行。
+\subsection{适应度函数实现}
 
-\begin{table}[H]
-\centering
-\caption{IDA*与A*内存使用对比}
-\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-\hline
-\textbf{关卡ID} & \textbf{算法} & \textbf{峰值内存(KB)} & \textbf{扩展节点数} \\
-\hline
-Level 3 & A* & 12,456 & 4,562 \\
-Level 3 & IDA* & 128 & 4,562 \\
-\hline
-Level 4 & A* & 45,234 & 15,678 \\
-Level 4 & IDA* & 256 & 15,678 \\
-\hline
-Level 5 & A* & OOM & - \\
-Level 5 & IDA* & 1,024 & 45,123 \\
-\hline
-\end{tabularx}
-\end{table}
+适应度函数对应论文第四章 4.2 节的公式定义。将硬约束计数乘以高权重 (500\,/\,1000)、将软约束累加值乘以低权重 (1.5\,/\,2\,/\,3\,/\,5)，二者求和即得 cost。
 
-实验结果清晰地展示了IDA*在内存效率方面的优势。Level 5关卡中A*因内存溢出（OOM）而失败，而IDA*仅使用约1MB内存即完成求解。这证明了IDA*算法在处理大规模推箱子问题时的必要性。
+\begin{lstlisting}[language=python,caption={硬代价计算 (\texttt{fitness.py} 节选)}]
+def compute_cost(schedule: Schedule, detector: ConflictDetector) -> float:
+    rep = detector.detect(schedule)
+    hard = (W_TEACHER * len(rep.teacher_clashes)
+          + W_ROOM    * len(rep.room_clashes)
+          + W_CLASS   * len(rep.class_clashes)
+          + W_CAPACITY* len(rep.capacity_violations)
+          + W_KIND    * len(rep.room_kind_violations))
+    return hard + soft_penalty(schedule)
+\end{lstlisting}
 
-\subsection{综合性能测试}
+\subsection{约束感知的初始化与变异}
 
-综合测试使用完整的Microban关卡集（15个关卡），记录各算法的整体表现。
+实现的关键在于函数 \texttt{feasible\_rooms\_for\_lesson()}，其在 GA 启动时预计算每个课程实例的可行教室集合，后续所有初始化与变异操作均在该集合内进行采样。
+
+\begin{lstlisting}[language=python,caption={可行教室集合预计算 (\texttt{operators.py} 节选)}]
+def feasible_rooms_for_lesson(instance: ProblemInstance) -> Dict[int, List[int]]:
+    table = {}
+    for i, lesson in enumerate(instance.lessons):
+        cand = []
+        for ri, room in enumerate(instance.classrooms):
+            if room.capacity < lesson.min_capacity:
+                continue
+            if lesson.required_kind != "any" and room.kind != lesson.required_kind:
+                continue
+            cand.append(ri)
+        if not cand:
+            cand = list(range(instance.n_rooms))  # 数据无解时退化
+        table[i] = cand
+    return table
+
+def random_schedule(instance, rng, feasible=None):
+    if feasible is None:
+        feasible = feasible_rooms_for_lesson(instance)
+    genes = [(rng.randrange(instance.n_slots), rng.choice(feasible[i]))
+             for i in range(instance.n_lessons)]
+    return Schedule(genes=genes, instance=instance)
+\end{lstlisting}
+
+\subsection{遗传算法主循环}
+
+GA 主循环约 40 行 Python 代码，在结构上分为初始化、记录历史、精英保留、子代生成与种群替换五个阶段。
+
+\begin{lstlisting}[language=python,caption={GA 主循环 (\texttt{ga.py} 节选)}]
+def run(self, progress_cb=None) -> GAResult:
+    rng = random.Random(self.config.seed)
+    feasible = feasible_rooms_for_lesson(self.instance)
+    pop = [random_schedule(self.instance, rng, feasible)
+           for _ in range(self.config.population_size)]
+    costs = [compute_cost(s, self.detector) for s in pop]
+    history = GAHistory()
+
+    for gen in range(self.config.n_generations):
+        best_i = min(range(len(pop)), key=lambda i: costs[i])
+        history.best_cost.append(costs[best_i])
+        history.mean_cost.append(sum(costs)/len(costs))
+        history.best_hard.append(
+            self.detector.detect(pop[best_i]).total_hard)
+        if progress_cb: progress_cb(gen, history, pop[best_i])
+
+        # 精英保留
+        elite_idx = sorted(range(len(pop)), key=lambda i: costs[i])[:self.config.elitism]
+        new_pop = [pop[i] for i in elite_idx]
+        fitnesses = [1.0/(1.0+c) for c in costs]
+
+        while len(new_pop) < self.config.population_size:
+            p1 = tournament_select(pop, fitnesses, rng, self.config.tournament_k)
+            p2 = tournament_select(pop, fitnesses, rng, self.config.tournament_k)
+            if rng.random() < self.config.crossover_prob:
+                c1, c2 = uniform_crossover(p1, p2, rng)
+            else:
+                c1, c2 = p1, p2
+            c1 = mutate(c1, rng, self.config.mutation_slot_prob,
+                        self.config.mutation_room_prob, feasible)
+            c2 = mutate(c2, rng, self.config.mutation_slot_prob,
+                        self.config.mutation_room_prob, feasible)
+            new_pop.append(c1)
+            if len(new_pop) < self.config.population_size:
+                new_pop.append(c2)
+        pop = new_pop
+        costs = [compute_cost(s, self.detector) for s in pop]
+    # ... 返回最优个体 ...
+\end{lstlisting}
+
+\subsection{Streamlit Web UI}
+
+Streamlit UI 通过左侧的单选导航将系统功能划分为六个页面，下面分别加以展示与说明。
+
+\subsubsection{问题概览页}
+
+进入系统时默认显示的页面，展示问题规模的若干关键指标以及全部硬约束与软约束的说明 (图~\ref{fig:ui-overview})。该页面相当于"系统说明书"，便于用户在参数配置之前先理解问题的结构。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\linewidth]{pic/performance_comparison.png}
-  \caption{不同启发式函数节点扩展数量对比}
+  \includegraphics[width=0.96\linewidth]{pic/ui_overview.png}
+  \caption{问题概览页}
+  \label{fig:ui-overview}
 \end{figure}
+
+\subsubsection{数据查看页}
+
+按"教师 / 教室 / 班级 / 课程"四张表展示输入数据 (图~\ref{fig:ui-data})。所有表格均基于 \texttt{st.dataframe} 渲染，支持列宽自适应、按列排序与分页等功能。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\linewidth]{pic/time_comparison.png}
-  \caption{不同启发式函数求解时间对比}
+  \includegraphics[width=0.96\linewidth]{pic/ui_data.png}
+  \caption{数据查看页}
+  \label{fig:ui-data}
 \end{figure}
 
-综合测试结果表明：
+\subsubsection{GA 配置与运行页}
 
-\begin{enumerate}
-\item 线性冲突启发式在大多数关卡上表现最优，平均节点扩展数比曼哈顿距离减少55\%
-\item MWPM启发式在箱子数量较多（$\geq$4）时优势更明显
-\item 死锁检测对所有启发式函数均有显著提升效果，平均减少40\%的计算量
-\item IDA*算法能够成功求解全部15个关卡，验证了系统的完整性和正确性
-\end{enumerate}
+用户可通过滑块调整种群规模、进化代数、交叉率、变异率、锦标赛 k 值、精英保留个数以及随机种子 (图~\ref{fig:ui-cfg})。点击"启动遗传算法"按钮后，进度条会实时反映当前进度，下方同时刷新种群最优 cost 与当前硬冲突数。
 
-\subsection{解决方案正确性验证}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\linewidth]{pic/ui_ga_config.png}
+  \caption{GA 配置与运行页}
+  \label{fig:ui-cfg}
+\end{figure}
 
-为保证返回解决方案的正确性，系统实现了解决方案验证器。验证器重放解决方案的每一步，检验：
+GA 运行结束后，页面将显示完成时长、末代 cost 与硬冲突数，并并排展示收敛曲线与硬冲突下降曲线 (图~\ref{fig:ui-done})。该信息是用户判断算法是否成功收敛的主要依据。
 
-\begin{itemize}
-\item 每步移动是否合法（不能穿墙、不能推动多个箱子）
-\item 玩家位置是否连续（玩家的移动距离不能超过1格）
-\item 最终状态是否满足目标条件（所有箱子都在目标点上）
-\end{itemize}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\linewidth]{pic/ui_ga_running_done.png}
+  \caption{GA 运行完成后的实时反馈}
+  \label{fig:ui-done}
+\end{figure}
 
-对全部15个关卡的解决方案验证均通过，正确率100\%。
+\subsubsection{排课结果页}
 
-\subsection{算法效率影响因素分析}
+支持从班级视角查看课表，可通过左上角下拉框切换班级 (图~\ref{fig:ui-schedule})。课表以"星期 $\times$ 节次"的二维网格呈现，每个格子内分别标注课程名、任课教师与教室。下方为全部排课明细，支持按任意列排序。再下方展示班级日课时热力图与教室占用热力图，便于直观把握整体的负载分布。
 
-搜索效率受多种因素影响，本节进行敏感性分析。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\linewidth]{pic/ui_schedule.png}
+  \caption{班级课表展示}
+  \label{fig:ui-schedule}
+\end{figure}
 
-\textbf{箱子数量}是影响搜索难度的最主要因素。搜索空间随箱子数量呈指数增长：
+\subsubsection{冲突检测报告页}
 
-\begin{equation}
-|S| \approx (W \times H)^n
-\end{equation}
+针对五类硬约束的违反情况分别绘制 metric 卡片，并按类别展开详细信息 (图~\ref{fig:ui-conflict})。每条冲突会将所涉及两节课的课程名、教师、班级、时间与教室一并列出，便于人工排查。
 
-其中$n$为箱子数量。实验表明，箱子数量每增加1个，平均求解时间增加约10倍。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\linewidth]{pic/ui_conflict.png}
+  \caption{冲突检测报告页}
+  \label{fig:ui-conflict}
+\end{figure}
 
-\textbf{地图复杂度}也是重要因素。狭窄通道和死角落多的地图更容易触发死锁检测，产生更高的剪枝效率。
+\subsubsection{算法可视化页}
 
-\textbf{解的深度}影响IDA*的迭代次数。深度每增加一层，IDA*可能需要多迭代一次才能找到解。
+将收敛曲线、硬冲突下降曲线、班级日课时热力图与教室占用热力图四张图集中展示，便于演示与报告使用。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\linewidth]{pic/ui_viz.png}
+  \caption{算法可视化页}
+  \label{fig:ui-viz}
+\end{figure}
+
+\subsection{自动化截图脚本}
+
+为使论文中的截图能够稳定复现，本项目实现了 \texttt{capture\_screenshots.py} 脚本。该脚本通过 Playwright 驱动一个无头 Chromium 浏览器，按"左侧导航 $\to$ 等待 Streamlit 状态空闲 $\to$ 截图"的流程依次截取所有页面，最终输出至 \texttt{thesis/pic/} 目录。这种"运行系统再截图"的流水线避免了手工截图的不确定性，亦保证了截图与代码版本始终保持一致。

@@ -1,423 +1,246 @@
 \hspace*{\fill}
 
-\section{系统详细设计与实现}
+\section{遗传算法设计与优化}
 
-本系统采用C++语言实现，使用CMake作为构建系统。代码组织结构如下：
+本章为论文的算法核心部分。首先给出适应度函数的完整定义，进而依次介绍染色体编码、初始化、选择、交叉、变异、精英保留以及算法主循环。本章重点放在公式表述与约束感知机制的设计之上。
 
-\begin{lstlisting}[language=bash,caption={项目目录结构}]
-sokoban_solver/
-├── include/          # 头文件目录
-│   ├── state.hpp     # 状态表示
-│   ├── heuristics.hpp # 启发式函数
-│   ├── ida_star.hpp  # IDA*算法
-│   ├── game_engine.hpp # 游戏引擎
-│   ├── map_parser.hpp # 地图解析器
-│   ├── visualizer.hpp # 可视化
-│   └── solver.hpp    # 主求解器
-├── src/              # 源代码目录
-│   ├── state.cpp
-│   ├── heuristics.cpp
-│   ├── ida_star.cpp
-│   ├── game_engine.cpp
-│   ├── map_parser.cpp
-│   ├── visualizer.cpp
-│   └── solver.cpp
-├── levels/           # 关卡文件
-└── main.cpp          # 主程序入口
-\end{lstlisting}
+\subsection{染色体编码}
 
-\subsection{核心数据结构实现}
+对于含有 $n$ 个待排课程实例的问题，本系统采用长度为 $n$ 的整数对序列作为染色体：
 
-\subsubsection{状态类设计}
+\begin{equation}
+  C = [g_1, g_2, \ldots, g_n], \qquad g_i = (s_i, r_i)
+\end{equation}
 
-状态类（\texttt{State}）是系统中最核心的数据结构，采用面向对象设计：
+其中 $s_i \in \{0, 1, \ldots, |S|-1\}$ 为时间槽下标，$r_i \in \{0, 1, \ldots, |R|-1\}$ 为教室下标。每个基因 $g_i$ 描述第 $i$ 节课程实例 $\ell_i$ 的具体安排。教师 $t(\ell_i)$ 与班级 $G(\ell_i)$ 不参与编码，因其由 $\ell_i$ 自身决定，在搜索过程中保持不变。图~\ref{fig:encoding} 给出了一条长度为 7 的样例染色体的图示。
 
-\begin{lstlisting}[language=c++,caption={State类定义（state.hpp）}]
-class State {
-public:
-    std::vector<Position> boxes;  // 箱子位置集合
-    Position player;              // 玩家位置
-    int width;                    // 地图宽度
-    int height;                   // 地图高度
-    uint64_t hash;               // Zobrist哈希值
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\linewidth]{pic/chromosome_encoding.png}
+  \caption{染色体编码示意}
+  \label{fig:encoding}
+\end{figure}
 
-    State() : width(0), height(0), hash(0) {}
+该编码方式在语义与结构两个层面均具有良好性质：基因与课程实例一一对应使其语义直接，而基因位之间相互独立则便于设计逐位作用的交叉与变异算子。文献中亦讨论过基于优先级的间接编码方式\upcite{8}，本文未予采用，原因在于直接编码在中等规模问题上已具足够的求解能力，且更便于与后续的约束感知机制相结合。
 
-    State(int w, int h, const std::vector<Position>& boxes,
-          const Position& player)
-        : boxes(boxes), player(player), width(w), height(h), hash(0) {
-        std::sort(this->boxes.begin(), this->boxes.end());
-    }
+\subsection{适应度函数设计}
 
-    bool operator==(const State& other) const;
-    bool operator<(const State& other) const;
-    uint64_t computeHash(const std::vector<std::vector<bool>>& wallGrid,
-                         const std::vector<uint64_t>& boxHash,
-                         const std::vector<uint64_t>& playerHash) const;
-    std::string toString() const;
-};
-\end{lstlisting}
+为将硬约束与软约束统一纳入同一目标，本系统采用罚函数方式构造代价 (cost)，再通过 fitness $= 1/(1+\text{cost})$ 映射为最大化形式。
 
-状态类的设计要点：
-\begin{itemize}
-\item \texttt{boxes}使用向量存储并始终保持有序，确保相同状态有相同的向量表示
-\item \texttt{hash}存储Zobrist哈希值，用于快速状态比较和去重
-\item 拷贝构造函数默认实现，支持深拷贝
-\end{itemize}
+\subsubsection{硬约束代价}
 
-\subsubsection{位置结构设计}
+设 $C$ 为一个候选解，定义五个硬约束违反计数：
 
-\begin{lstlisting}[language=c++,caption={Position结构定义（state.hpp）}]
-struct Position {
-    int x, y;
-    Position() : x(0), y(0) {}
-    Position(int x_, int y_) : x(x_), y(y_) {}
+\begin{align}
+H_1(C) &= \big|\{(i,j) : i < j,\; s(\ell_i) = s(\ell_j),\; t(\ell_i) = t(\ell_j)\}\big| \quad \text{教师冲突} \\
+H_2(C) &= \big|\{(i,j) : i < j,\; s(\ell_i) = s(\ell_j),\; r(\ell_i) = r(\ell_j)\}\big| \quad \text{教室冲突} \\
+H_3(C) &= \big|\{(i,j) : i < j,\; s(\ell_i) = s(\ell_j),\; G(\ell_i) \cap G(\ell_j) \neq \emptyset\}\big| \quad \text{班级冲突} \\
+H_4(C) &= \big|\{i : \mathrm{cap}(r(\ell_i)) < \mathrm{mincap}(\ell_i)\}\big| \quad \text{容量不足} \\
+H_5(C) &= \big|\{i : \mathrm{kind}(\ell_i) \neq \text{any} \wedge \mathrm{kind}(r(\ell_i)) \neq \mathrm{kind}(\ell_i)\}\big| \quad \text{教室类型不符}
+\end{align}
 
-    bool operator==(const Position& other) const {
-        return x == other.x && y == other.y;
-    }
+对应的硬代价为：
 
-    bool operator<(const Position& other) const {
-        return y < other.y || (y == other.y && x < other.x);
-    }
+\begin{equation}
+  \mathrm{HardCost}(C) = w_1 H_1(C) + w_2 H_2(C) + w_3 H_3(C) + w_4 H_4(C) + w_5 H_5(C)
+\end{equation}
 
-    Position move(int dir) const {
-        return Position(x + DIR_X[dir], y + DIR_Y[dir]);
-    }
-};
-\end{lstlisting}
+其中 $w_1 = w_2 = w_3 = 1000$，$w_4 = w_5 = 500$。资源冲突类违反的权重高于容量与类型违反，原因在于前者会直接导致排课方案不可执行，而后者在某些情形下尚可通过调换教室加以缓解。
 
-位置结构重载了比较运算符，使其可以直接用于STL容器（如集合、优先队列）。
+\subsubsection{软约束代价}
 
-\subsection{Zobrist哈希实现}
+软约束包含教师偏好、末节安排、班级日课时上限以及班级日内空堂四项。
 
-Zobrist哈希的实现利用了64位无符号整数的异或运算性质：
+教师偏好方面，每位教师 $t$ 维护一个偏好时间槽集合 $\mathrm{Pref}(t) \subseteq S$。若 $\mathrm{Pref}(t)$ 非空而某节课被安排在了非偏好时段，则记一次违反：
+\begin{equation}
+  P_1(C) = \sum_{i=1}^{n} \mathbb{1}[\mathrm{Pref}(t(\ell_i)) \neq \emptyset \wedge s(\ell_i) \notin \mathrm{Pref}(t(\ell_i))]
+\end{equation}
 
-\begin{lstlisting}[language=c++,caption={Zobrist哈希实现（zobrist.hpp）}]
-class ZobristTable {
-public:
-    std::vector<std::vector<std::vector<uint64_t>>> boxTable;
-    std::vector<std::vector<uint64_t>> playerTable;
-    uint64_t currentHash;
+末节安排方面，设每天最后一节的下标为 $p_{\max}$，则
+\begin{equation}
+  P_2(C) = \sum_{i=1}^{n} \mathbb{1}[\mathrm{period}(s(\ell_i)) = p_{\max}]
+\end{equation}
 
-    void init(int height, int width, int numBoxes) {
-        boxTable.resize(height);
-        for (int y = 0; y < height; y++) {
-            boxTable[y].resize(width);
-            for (int x = 0; x < width; x++) {
-                boxTable[y][x].resize(numBoxes);
-                for (int b = 0; b < numBoxes; b++) {
-                    boxTable[y][x][b] = RandomGenerator::next();
-                }
-            }
-        }
+班级日课时上限方面，对每个班级 $g$ 和每一天 $d$，设当日课时数为 $N(g,d)$。若 $N(g,d) > 4$ 则按超出量记罚：
+\begin{equation}
+  P_3(C) = \sum_{g \in G} \sum_{d=0}^{D-1} \max\{0,\; N(g,d) - 4\}
+\end{equation}
 
-        playerTable.resize(height);
-        for (int y = 0; y < height; y++) {
-            playerTable[y].resize(width);
-            for (int x = 0; x < width; x++) {
-                playerTable[y][x] = RandomGenerator::next();
-            }
-        }
-        currentHash = RandomGenerator::next();
-    }
+班级日内空堂方面，设班级 $g$ 在第 $d$ 天的课程节次集合为 $\Pi(g,d) \subseteq \{0,1,\ldots,p_{\max}\}$，则该日空堂数为
+\begin{equation}
+  \mathrm{gap}(g,d) = \big(\max \Pi(g,d) - \min \Pi(g,d) + 1\big) - |\Pi(g,d)|
+\end{equation}
+软代价中累加全部正空堂：
+\begin{equation}
+  P_4(C) = \sum_{g \in G} \sum_{d=0}^{D-1} \mathrm{gap}(g,d)
+\end{equation}
 
-    uint64_t computeHash(const std::vector<Position>& boxes,
-                         const Position& player) const {
-        uint64_t h = currentHash;
-        for (int i = 0; i < static_cast<int>(boxes.size()); i++) {
-            h ^= boxTable[boxes[i].y][boxes[i].x][i];
-        }
-        h ^= playerTable[player.y][player.x];
-        return h;
-    }
-};
-\end{lstlisting}
+四项软代价加权求和：
+\begin{equation}
+  \mathrm{SoftCost}(C) = \lambda_1 P_1 + \lambda_2 P_2 + \lambda_3 P_3 + \lambda_4 P_4
+\end{equation}
+其中 $\lambda_1 = 5$，$\lambda_2 = 1.5$，$\lambda_3 = 2$，$\lambda_4 = 3$。上述权重均小于硬代价中最小的 500，从而保证在硬约束尚未完全消除之前，算法不会被软约束误导。
 
-\subsection{启发式函数实现}
+\subsubsection{总代价与适应度映射}
 
-\subsubsection{曼哈顿距离启发式}
+\begin{equation}
+  \mathrm{cost}(C) = \mathrm{HardCost}(C) + \mathrm{SoftCost}(C), \qquad
+  \mathrm{fitness}(C) = \frac{1}{1 + \mathrm{cost}(C)}
+\end{equation}
 
-曼哈顿距离启发式是最基础的实现：
+此 fitness 映射可保证：cost 越小，fitness 越大；且 fitness 始终位于 $(0, 1]$ 区间内，便于锦标赛选择与概率运算。
 
-\begin{lstlisting}[language=c++,caption={曼哈顿距离启发式（heuristics.cpp）}]
-int ManhattanDistance::h(const State& state) const {
-    int sum = 0;
-    for (const auto& box : state.boxes) {
-        int minDist = std::numeric_limits<int>::max();
-        for (const auto& target : detector->targets) {
-            int dist = std::abs(box.x - target.x) + std::abs(box.y - target.y);
-            minDist = std::min(minDist, dist);
-        }
-        if (minDist == std::numeric_limits<int>::max()) {
-            return std::numeric_limits<int>::max();
-        }
-        sum += minDist;
-    }
+\subsection{约束感知的初始化}
 
-    if (detector && detector->isDeadlock(state)) {
-        return std::numeric_limits<int>::max();
-    }
+在排课问题中，存在一类与时间无关的硬约束（即教室容量约束与教室类型约束），其仅由 (课程, 教室) 配对决定。若采用完全随机的初始化，大量初始个体将携带此类违反，浪费早期的进化资源。为此，本文引入预计算的可行教室集合：
 
-    return sum;
+\begin{equation}
+  \mathcal{R}(\ell_i) = \{r \in R : \mathrm{cap}(r) \geq \mathrm{mincap}(\ell_i) \wedge (\mathrm{kind}(\ell_i) = \text{any} \vee \mathrm{kind}(r) = \mathrm{kind}(\ell_i))\}
+\end{equation}
+
+初始化时为每个基因独立采样：
+\begin{equation}
+  s_i \sim \mathrm{Uniform}\{0, \ldots, |S|-1\}, \qquad r_i \sim \mathrm{Uniform}(\mathcal{R}(\ell_i))
+\end{equation}
+
+由此，所有初始个体均自动满足教室容量与类型约束，整个进化过程仅需解决教师、教室、班级三类时间相关的资源冲突。消融实验结果表明 (见第六章 \ref{sec:exp-baseline} 节)，该约束感知机制显著降低了 GA 的收敛代数。约束感知初始化的具体流程如算法~\ref{algo:init} 所示。
+
+\begin{algorithm}[!ht]
+\caption{约束感知的随机初始化}\label{algo:init}
+\DontPrintSemicolon
+\SetAlgoLined
+\KwIn{问题实例 $\mathcal{I} = (T, R, S, G, K, L)$；种群规模 $N$}
+\KwOut{初始种群 $\mathcal{P}^{(0)} = \{C_1, C_2, \ldots, C_N\}$}
+
+\For{$i \leftarrow 1$ \KwTo $|L|$}{
+  $\mathcal{R}(\ell_i) \leftarrow \{r \in R \mid \mathrm{cap}(r) \geq \mathrm{mincap}(\ell_i) \wedge (\mathrm{kind}(\ell_i) = \text{any} \vee \mathrm{kind}(r) = \mathrm{kind}(\ell_i))\}$\;
 }
-\end{lstlisting}
-
-\subsubsection{最小权完美匹配启发式}
-
-最小权完美匹配启发式使用匈牙利算法求解最优分配：
-
-\begin{lstlisting}[language=c++,caption={匈牙利算法实现（heuristics.cpp）}]
-int MinimumWeightPerfectMatching::hungarian(
-    const std::vector<std::vector<int>>& cost,
-    int n, std::vector<int>& match) const {
-
-    std::vector<int> u(n+1), v(n+1), p(n+1), way(n+1);
-
-    for (int i = 1; i <= n; i++) {
-        p[0] = i;
-        int j0 = 0;
-        std::vector<int> minv(n+1, INT_MAX);
-        std::vector<char> used(n+1, false);
-
-        do {
-            used[j0] = true;
-            int i0 = p[j0], delta = INT_MAX, j1 = 0;
-
-            for (int j = 1; j <= n; j++) {
-                if (!used[j]) {
-                    int cur = cost[i0-1][j-1] - u[i0] - v[j];
-                    if (cur < minv[j]) {
-                        minv[j] = cur;
-                        way[j] = j0;
-                    }
-                    if (minv[j] < delta) {
-                        delta = minv[j];
-                        j1 = j;
-                    }
-                }
-            }
-
-            for (int j = 0; j <= n; j++) {
-                if (used[j]) {
-                    u[p[j]] += delta;
-                    v[j] -= delta;
-                } else {
-                    minv[j] -= delta;
-                }
-            }
-
-            j0 = j1;
-        } while (p[j0] != 0);
-
-        do {
-            int j1 = way[j0];
-            p[j0] = p[j1];
-            j0 = j1;
-        } while (j0);
-    }
-
-    match.assign(n, -1);
-    for (int j = 1; j <= n; j++) {
-        match[p[j]-1] = j-1;
-    }
-
-    return -v[0];
+$\mathcal{P}^{(0)} \leftarrow \emptyset$\;
+\For{$j \leftarrow 1$ \KwTo $N$}{
+  \For{$i \leftarrow 1$ \KwTo $|L|$}{
+    $s_i \leftarrow \mathrm{Uniform}\{0, 1, \ldots, |S|-1\}$\;
+    $r_i \leftarrow \mathrm{Uniform}(\mathcal{R}(\ell_i))$\;
+    $g_i \leftarrow (s_i, r_i)$\;
+  }
+  $C_j \leftarrow [g_1, g_2, \ldots, g_{|L|}]$\;
+  $\mathcal{P}^{(0)} \leftarrow \mathcal{P}^{(0)} \cup \{C_j\}$\;
 }
-\end{lstlisting}
+\Return{$\mathcal{P}^{(0)}$}\;
+\end{algorithm}
 
-\subsection{死锁检测实现}
+\subsection{选择算子：锦标赛选择}
 
-死锁检测是推箱子求解系统中的关键优化：
+锦标赛选择每次从种群中随机抽取 $k$ 个个体，取其中适应度最高者作为父代：
+\begin{equation}
+  \mathrm{Tournament}_k(\mathcal{P}) = \arg\max_{C \in \mathcal{S}} \mathrm{fitness}(C), \quad \mathcal{S} \overset{\text{i.i.d.}}{\sim} \mathcal{P},\; |\mathcal{S}| = k
+\end{equation}
+本系统默认 $k = 3$。与轮盘赌选择相比，锦标赛选择对适应度的绝对值不敏感，仅依赖相对排名，因而对适应度的尺度变化具有更好的鲁棒性——这一特性在排课这类 cost 可能跨越多个数量级的问题中尤为有用。
 
-\begin{lstlisting}[language=c++,caption={角落死锁检测（state.cpp）}]
-bool DeadlockDetector::isCornerDeadlock(const Position& box) const {
-    int x = box.x;
-    int y = box.y;
+\subsection{交叉算子：均匀交叉}
 
-    if (targetGrid[y][x]) {
-        return false;
+均匀交叉 (Uniform Crossover) 对每个基因位独立做一次伯努利试验，以 $p = 0.5$ 的概率决定是否交换两个父代在该位上的基因：
+\begin{equation}
+  g_i^{(C_1)} = \begin{cases} g_i^{(P_2)}, & \text{w.p. } 0.5 \\ g_i^{(P_1)}, & \text{otherwise} \end{cases}
+\end{equation}
+$C_2$ 取互补部分。
+
+值得注意的是，由于父代 $P_1$、$P_2$ 在基因位 $i$ 上的基因均来自 $\mathcal{R}(\ell_i)$，因此经均匀交叉得到的子代仍然满足教室容量与类型约束——交叉算子天然保持了上节所构造的可行性。
+
+\subsection{变异算子：约束感知重采样}
+
+变异分为时间槽变异与教室变异，二者独立进行：
+\begin{align}
+  s_i' &= \begin{cases} \mathrm{Uniform}\{0,\ldots,|S|-1\}, & \text{w.p. } p_m^{(s)} \\ s_i, & \text{otherwise} \end{cases} \\
+  r_i' &= \begin{cases} \mathrm{Uniform}(\mathcal{R}(\ell_i)), & \text{w.p. } p_m^{(r)} \\ r_i, & \text{otherwise} \end{cases}
+\end{align}
+注意教室变异仅在可行集合 $\mathcal{R}(\ell_i)$ 内采样，从而再次保证变异后的染色体仍然满足教室容量与类型约束。
+
+\subsection{精英保留与替代}
+
+每一代结束时，按 cost 升序对当前种群排序，取前 $E$ 个个体直接进入下一代 (本文取 $E = 2$)。其余位置通过"锦标赛选择 → 概率 $p_c$ 交叉 → 变异"的流水线生成：
+
+\begin{equation}
+  \mathcal{P}^{(t+1)} = \{\text{Top-}E(\mathcal{P}^{(t)})\} \cup \{\mathrm{Mutate}(\mathrm{Crossover}(P_1, P_2)) : P_1, P_2 \in \mathcal{P}^{(t)}\}
+\end{equation}
+
+精英保留的作用在于防止当前最优解在交叉、变异过程中被无意破坏，本质上是一种隐式的"局部记忆"机制\upcite{15}。
+
+\subsection{终止条件}
+
+本系统采用固定代数终止策略——当迭代达到预设的 $T_{\max}$ 代时停止。虽然亦可使用"连续 $K$ 代最优 cost 不再下降"作为早停条件，但在实测中固定代数更便于参数对比实验，因此默认实现采用前者。
+
+\subsection{算法主流程}
+
+将上述各要素组合，即得完整的遗传算法主流程，如图~\ref{fig:flowchart} 所示，对应的形式化伪代码见算法~\ref{algo:ga}。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{pic/ga_flowchart.png}
+  \caption{遗传算法主流程}
+  \label{fig:flowchart}
+\end{figure}
+
+\begin{algorithm}[!ht]
+\caption{遗传算法求解排课问题}\label{algo:ga}
+\DontPrintSemicolon
+\SetAlgoLined
+\KwIn{问题实例 $\mathcal{I}$；参数 $(N, T_{\max}, p_c, p_m^{(s)}, p_m^{(r)}, k, E)$}
+\KwOut{最优排课方案 $C^\ast$}
+
+$\mathcal{P}^{(0)} \leftarrow \text{ConstraintAwareInit}(\mathcal{I}, N)$\;
+\For{$t \leftarrow 0$ \KwTo $T_{\max}-1$}{
+  \ForEach{$C \in \mathcal{P}^{(t)}$}{
+    $\mathrm{cost}(C) \leftarrow \mathrm{HardCost}(C) + \mathrm{SoftCost}(C)$\;
+    $\mathrm{fitness}(C) \leftarrow 1/(1+\mathrm{cost}(C))$\;
+  }
+  $\mathcal{E} \leftarrow \mathrm{Top}_E(\mathcal{P}^{(t)})$\;
+  $\mathcal{P}^{(t+1)} \leftarrow \mathcal{E}$\;
+  \While{$|\mathcal{P}^{(t+1)}| < N$}{
+    $P_1 \leftarrow \mathrm{Tournament}_k(\mathcal{P}^{(t)})$\;
+    $P_2 \leftarrow \mathrm{Tournament}_k(\mathcal{P}^{(t)})$\;
+    \eIf{$\mathrm{rand}() < p_c$}{
+      $(C_1, C_2) \leftarrow \mathrm{UniformCrossover}(P_1, P_2)$\;
+    }{
+      $(C_1, C_2) \leftarrow (P_1, P_2)$\;
     }
-
-    bool leftWall = (x - 1 < 0) || wallGrid[y][x - 1];
-    bool rightWall = (x + 1 >= width) || wallGrid[y][x + 1];
-    bool topWall = (y - 1 < 0) || wallGrid[y - 1][x];
-    bool bottomWall = (y + 1 >= height) || wallGrid[y + 1][x];
-
-    if (leftWall && topWall) return true;
-    if (rightWall && topWall) return true;
-    if (leftWall && bottomWall) return true;
-    if (rightWall && bottomWall) return true;
-
-    return false;
+    $C_1 \leftarrow \mathrm{Mutate}(C_1, p_m^{(s)}, p_m^{(r)})$\;
+    $C_2 \leftarrow \mathrm{Mutate}(C_2, p_m^{(s)}, p_m^{(r)})$\;
+    $\mathcal{P}^{(t+1)} \leftarrow \mathcal{P}^{(t+1)} \cup \{C_1, C_2\}$\;
+  }
 }
-\end{lstlisting}
+$C^\ast \leftarrow \arg\min_{C \in \mathcal{P}^{(T_{\max})}} \mathrm{cost}(C)$\;
+\Return{$C^\ast$}\;
+\end{algorithm}
 
-\subsection{IDA*搜索实现}
+图~\ref{fig:cross-mut} 进一步通过具体示例展示了均匀交叉与变异的操作过程。
 
-IDA*是系统的核心搜索算法：
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\linewidth]{pic/crossover_mutation.png}
+  \caption{均匀交叉与变异示例}
+  \label{fig:cross-mut}
+\end{figure}
 
-\begin{lstlisting}[language=c++,caption={IDA*搜索实现（ida_star.cpp）}]
-int IDASolver::search(int g, int bound, State& state,
-                       std::vector<State>& path,
-                       std::vector<Direction>& moves) {
-    int h = f(state, g);
+\subsection{参数选择}
 
-    if (h == std::numeric_limits<int>::max()) {
-        return std::numeric_limits<int>::max();
-    }
+综合参考文献\upcite{4,11}与本课题在调试过程中的观察，本系统默认采用如下参数：
 
-    int f = g + h;
-    if (f > bound) {
-        return f;
-    }
+\begin{table}[H]
+  \centering
+  \caption{遗传算法默认参数}
+  \label{tab:ga-params}
+  \begin{tabularx}{\linewidth}{l X l}
+    \hline
+    \textbf{参数} & \textbf{含义} & \textbf{默认值} \\
+    \hline
+    $|\mathcal{P}|$ & 种群规模 & 80 \\
+    $T_{\max}$ & 最大进化代数 & 200 \\
+    $p_c$ & 交叉概率 & 0.85 \\
+    $p_m^{(s)}$, $p_m^{(r)}$ & 时间槽 / 教室变异概率 & 0.05 \\
+    $k$ & 锦标赛规模 & 3 \\
+    $E$ & 精英保留个数 & 2 \\
+    \hline
+  \end{tabularx}
+\end{table}
 
-    if (h == 0) {
-        return -1;
-    }
-
-    nodesExpanded++;
-    maxDepthReached = std::max(maxDepthReached, g);
-
-    if (isTimeExpired() || cancelRequested) {
-        return std::numeric_limits<int>::max();
-    }
-
-    auto legalMoves = getLegalMoves(state);
-    int minBound = std::numeric_limits<int>::max();
-
-    for (const auto& [dir, boxPos] : legalMoves) {
-        State newState = applyMove(state, dir, boxPos);
-
-        auto it = visited.find(newState.hash);
-        if (it != visited.end() && it->second <= g + 1) {
-            continue;
-        }
-
-        visited[newState.hash] = g + 1;
-        path.push_back(newState);
-        moves.push_back(dir);
-
-        int t = search(g + 1, bound, newState, path, moves);
-
-        if (t == -1) {
-            return -1;
-        }
-
-        if (t < minBound) {
-            minBound = t;
-        }
-
-        path.pop_back();
-        moves.pop_back();
-    }
-
-    return minBound == std::numeric_limits<int>::max() ? bound : minBound;
-}
-\end{lstlisting}
-
-\subsection{地图解析器实现}
-
-地图解析器支持标准XSB格式：
-
-\begin{lstlisting}[language=c++,caption={XSB格式解析（map_parser.cpp）}]
-MapParser::ParseResult MapParser::parseLines(
-    const std::vector<std::string>& lines) {
-
-    ParseResult result;
-
-    size_t maxWidth = 0;
-    for (const auto& l : lines) {
-        maxWidth = std::max(maxWidth, l.size());
-    }
-
-    std::vector<std::string> normalized;
-    for (const auto& l : lines) {
-        if (!l.empty()) {
-            std::string row = l;
-            while (row.size() < maxWidth) row += ' ';
-            normalized.push_back(row);
-        }
-    }
-
-    for (int y = 0; y < static_cast<int>(normalized.size()); y++) {
-        const std::string& l = normalized[y];
-        for (int x = 0; x < static_cast<int>(l.size()); x++) {
-            char c = l[x];
-            Position pos(x, y);
-
-            if (c == PLAYER || c == PLAYER_ON_TARGET) {
-                result.player = pos;
-            }
-            if (c == BOX || c == BOX_ON_TARGET) {
-                result.boxes.push_back(pos);
-            }
-            if (c == TARGET || c == BOX_ON_TARGET || c == PLAYER_ON_TARGET) {
-                result.targets.push_back(pos);
-            }
-        }
-    }
-
-    result.map = normalized;
-    result.height = static_cast<int>(normalized.size());
-    result.width = static_cast<int>(maxWidth);
-    result.success = true;
-    return result;
-}
-\end{lstlisting}
-
-\subsection{游戏引擎实现}
-
-游戏引擎处理推箱子的基本规则：
-
-\begin{lstlisting}[language=c++,caption={移动逻辑实现（game_engine.cpp）}]
-MoveResult GameEngine::move(State& state, Direction dir) {
-    Position newPlayerPos = state.player.move(dir);
-
-    if (!inBounds(newPlayerPos.x, newPlayerPos.y)) {
-        return MoveResult::OUT_OF_BOUNDS;
-    }
-
-    if (isWall(newPlayerPos.x, newPlayerPos.y)) {
-        return MoveResult::HIT_WALL;
-    }
-
-    int boxIdx = -1;
-    for (int i = 0; i < static_cast<int>(state.boxes.size()); i++) {
-        if (state.boxes[i].x == newPlayerPos.x &&
-            state.boxes[i].y == newPlayerPos.y) {
-            boxIdx = i;
-            break;
-        }
-    }
-
-    if (boxIdx >= 0) {
-        Position boxDest = newPlayerPos.move(dir);
-
-        if (!inBounds(boxDest.x, boxDest.y)) {
-            return MoveResult::OUT_OF_BOUNDS;
-        }
-
-        if (isWall(boxDest.x, boxDest.y)) {
-            return MoveResult::HIT_WALL;
-        }
-
-        bool destHasBox = false;
-        for (const auto& box : state.boxes) {
-            if (box.x == boxDest.x && box.y == boxDest.y) {
-                destHasBox = true;
-                break;
-            }
-        }
-        if (destHasBox) {
-            return MoveResult::BOX_STUCK;
-        }
-
-        state.boxes[boxIdx] = boxDest;
-        std::sort(state.boxes.begin(), state.boxes.end());
-    }
-
-    state.player = newPlayerPos;
-    return MoveResult::OK;
-}
-\end{lstlisting}
+上述参数并非任意选取，第六章将进一步开展敏感性分析。

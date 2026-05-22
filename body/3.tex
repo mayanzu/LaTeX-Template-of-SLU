@@ -1,189 +1,68 @@
-﻿\hspace*{\fill}
+\hspace*{\fill}
 \section{系统需求分析与总体设计}
+
+本章首先明确本系统所需解决的问题与所需交付的功能，进而给出系统总体架构图，并对各模块的职责及其之间的数据流加以说明。
 
 \subsection{功能需求分析}
 
-推箱子求解系统的核心功能需求包括以下几个方面：
-
-\textbf{关卡解析功能}：系统需要支持标准XSB格式的关卡文件解析。XSB格式使用特定字符表示地图元素：\texttt{\#}表示墙，\texttt{@}表示玩家，\texttt{+}表示玩家在目标点上，\texttt{\$}表示箱子，\texttt{*}表示箱子在目标点上，\texttt{.}表示目标点，空格表示地板。解析器应能够从文件或字符串中提取关卡信息，验证关卡合法性（箱子数等于目标数、恰好一个玩家等），并生成初始状态。
-
-\textbf{游戏引擎功能}：实现推箱子的基本规则逻辑。玩家可以向四个方向移动；如果玩家移动方向上有箱子且箱子另一侧为空地或目标，则箱子被推动；玩家不能穿过箱子，不能穿过墙壁；当所有箱子都推到目标点上时，关卡完成。
-
-\textbf{求解引擎功能}：这是系统的核心。实现IDA*搜索算法，能够在给定的初始状态下搜索解决问题的方案。系统应能处理不同规模和难度的关卡，并返回解决方案路径。
-
-\textbf{可视化功能}：提供解决方案的实时回放或步骤展示功能，用户能够直观地观察到从初始状态到目标状态的解决过程。
+从教务人员的视角出发，本系统的核心功能涵盖数据维护、自动排课、冲突检测、结果展示与过程可视化五个方面。数据维护要求系统能够查看与维护教师、教室、班级、课程等基础信息，并能清晰呈现它们之间的关联关系（如某门课程由哪位教师讲授、由哪些班级合班授课等）。自动排课要求系统在用户给定的输入数据与算法参数下，自动生成一份满足全部硬约束的课表。冲突检测要求系统对任意候选课表（无论由 GA 生成还是人工导入）逐项指出哪些资源在哪个时间槽发生了冲突、哪节课的教室容量或类型不符合要求。结果展示要求系统能够从班级、教师、教室三个视角查看排课结果，并提供日课时分布热力图、教室占用热力图等概览信息。过程可视化则要求用户在运行 GA 的同时可实时观察适应度的下降曲线、硬冲突数量的变化等指标，以便评估算法的实际收敛情况。
 
 \subsection{非功能需求分析}
 
-\textbf{搜索效率}：对于中等难度关卡（5个箱子以内），系统应在数秒内完成求解；对于较难关卡，应能在合理时间内给出结果或判定无解。
-
-\textbf{内存效率}：采用IDA*算法保证内存复杂度为$O(d)$，其中$d$为解的深度。状态存储使用Zobrist Hashing实现$O(1)$的查重操作。
-
-\textbf{可扩展性}：系统设计应支持多种启发式函数的切换和新增，便于进行算法对比研究。
-
-\textbf{准确性}：系统返回的解决方案必须经过验证，保证其正确性。
+非功能需求主要涉及响应速度、易用性、可扩展性与可解释性四个方面。响应速度上，对于一个 12 班 / 39 课的中等规模实例，排课算法应在普通笔记本电脑上数秒内完成。易用性上，界面应保持简洁，教务人员无需 Python 基础即可完成全部交互。可扩展性上，当输入数据发生变化时，核心算法代码无需改动，仅需替换数据集即可完成迁移。可解释性上，算法不应表现为黑盒，必须能够向用户具体指明哪些课程发生了冲突，便于后续排查与处理。
 
 \subsection{系统总体架构设计}
 
-系统采用模块化架构设计，自底向上分为四个层次：
-
-\textbf{数据层}：管理推箱子游戏的核心状态数据，包括地图网格、箱子位置、玩家位置、目标位置等。该层提供状态的读取和修改接口。
-
-\textbf{算法层}：封装核心搜索算法，包括IDA*搜索、启发式函数计算、死锁检测和状态哈希等。该层是系统的核心模块。
-
-\textbf{引擎层}：实现游戏规则逻辑，处理玩家输入、状态转移、目标检测等功能。
-
-\textbf{表现层}：实现可视化功能，包括ASCII字符渲染和解决方案回放。
+根据上述需求，本系统被划分为六层结构，如图~\ref{fig:arch} 所示。最上层为基于 Streamlit 实现的 Web UI；其下分别为 GA 调度引擎与冲突检测器；再下层为适应度评估与编码及算子两个支持模块；最底层为数据模型层。除 UI 之外，其余各模块均不依赖任何 Web 框架，可作为独立的 Python 库供命令行脚本调用。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\linewidth]{pic/system_architecture.png}
-  \caption{推箱子求解系统架构图}
+  \includegraphics[width=0.85\linewidth]{pic/system_architecture.png}
+  \caption{系统总体架构}
+  \label{fig:arch}
 \end{figure}
 
-\subsection{状态表示设计}
+各模块的职责说明如下。Streamlit Web UI 负责所有人机交互，包括数据展示、参数配置与结果渲染，其内部不持有任何算法逻辑，所有计算均通过调用下层模块完成。GA 调度引擎 (\texttt{scheduler.ga}) 实现遗传算法的主循环，包括种群初始化、代际迭代与精英保留等，对外仅暴露 \texttt{run()} 方法，输入为 \texttt{ProblemInstance} 与 \texttt{GAConfig}，输出为 \texttt{GAResult}。冲突检测器 (\texttt{scheduler.conflict}) 给定一份排课方案后，遍历全部 (时间槽, 资源) 二元组，逐条统计冲突情况，该模块既被适应度函数调用，也被 UI 的"冲突检测报告"页面调用。适应度评估 (\texttt{scheduler.fitness}) 将硬约束违反计数与软约束违反量按权重累加得到 cost，再经 $1/(1+\text{cost})$ 的非线性映射得到适应度 (fitness)。编码与算子 (\texttt{scheduler.operators}) 包含染色体的随机初始化、锦标赛选择、均匀交叉与约束感知变异等算子，均以 \texttt{ProblemInstance} 作为上下文。数据模型层 (\texttt{scheduler.models}) 使用 Python dataclass 对教师、教室、时间槽、班级、课程、课程实例与完整排课方案进行类型化定义，是其余模块所共同依赖的基础。
 
-推箱子状态是求解系统中最关键的数据结构。一个状态$s$可以表示为一个二元组：
+\subsection{数据建模}
 
-\begin{equation}
-s = (B, P)
-\end{equation}
+数据模型层所涉及的核心类如表~\ref{tab:models} 所示。所有模型均使用 \texttt{@dataclass(frozen=True)} 装饰，使其在 GA 进化过程中能够被安全共享，避免被无意修改。
 
-其中$B = (b_1, b_2, ..., b_n)$是$n$个箱子位置的集合，$P = (x_p, y_p)$是玩家位置。
+\begin{table}[H]
+  \centering
+  \caption{数据模型类清单}
+  \label{tab:models}
+  \begin{tabularx}{\linewidth}{l X}
+    \hline
+    \textbf{类名} & \textbf{含义与主要字段} \\
+    \hline
+    \texttt{Teacher} & 教师：工号、姓名、所在部门、偏好时间段 \\
+    \texttt{Classroom} & 教室：编号、名称、容量、类型 (lecture/lab/multimedia) \\
+    \texttt{TimeSlot} & 时间槽：id、星期、节次、标签 \\
+    \texttt{ClassGroup} & 班级：编号、名称、人数、年级 \\
+    \texttt{Course} & 课程：课程号、课程名、任课教师、授课班级、周课时、所需教室类型、最小容量 \\
+    \texttt{Lesson} & 课程实例：由 Course 按周课时展开后得到，是 GA 排课的基本单元 \\
+    \texttt{ProblemInstance} & 问题实例：聚合上述六类对象，并提供查询方法 \\
+    \texttt{Schedule} & 排课方案：按 Lesson 索引存储的 (slot\_idx, room\_idx) 序列 \\
+    \hline
+  \end{tabularx}
+\end{table}
 
-状态压缩方案采用Zobrist Hashing技术。对于地图尺寸为$W \times H$、箱子数量为$n$的关卡，预先生成以下随机数表：
+\subsection{典型数据规模}
 
-\begin{itemize}
-\item $BoxTable[y][x][i]$：64位随机数，表示第$i$个箱子位于$(x, y)$位置
-\item $PlayerTable[y][x]$：64位随机数，表示玩家位于$(x, y)$位置
-\item $CurrentHash$：64位随机数，作为异或运算的初始值
-\end{itemize}
+为给算法明确具体的求解目标，本课题构造了一个相对真实的中等规模实例，其规模如表~\ref{tab:size} 所示，可视为某普通学院一个学期的典型排课情况。该实例的全部数据由 \texttt{scheduler.data.build\_sample\_instance()} 生成，便于复现。
 
-状态的Zobrist哈希值计算公式为：
+\begin{table}[H]
+  \centering
+  \caption{测试用例的规模}
+  \label{tab:size}
+  \begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+    \hline
+    教师数 & 教室数 & 时间槽数 & 班级数 & 课程数 & 课程实例数 \\
+    \hline
+    15 & 10 & 50 (5 天 $\times$ 10 节) & 12 & 39 & 62 \\
+    \hline
+  \end{tabularx}
+\end{table}
 
-\begin{equation}
-H(s) = CurrentHash \oplus \bigoplus_{i=1}^{n} BoxTable[b_i.y][b_i.x][i] \oplus PlayerTable[P.y][P.x]
-\end{equation}
-
-该方案的优势在于：当状态发生改变（如移动箱子）时，只需执行异或操作即可$O(1)$更新哈希值，无需重新计算整个状态的哈希。
-
-\subsection{启发式函数设计}
-
-启发式函数$h(n)$的设计是决定IDA*搜索效率的核心因素。本系统实现了多种启发式函数，下面对其进行详细介绍。
-
-\subsubsection{曼哈顿距离启发式}
-
-曼哈顿距离是最基础的启发式函数，对于每个箱子，计算其到最近目标点的曼哈顿距离，然后求和：
-
-\begin{equation}
-h_{Manhattan}(s) = \sum_{i=1}^{n} \min_{t \in T} (|b_i.x - t.x| + |b_i.y - t.y|)
-\end{equation}
-
-其中$T$是目标点集合。该启发式函数满足可采纳性（Admissible），因为在无障碍的空间中，曼哈顿距离恰好等于最短路径长度。
-
-\subsubsection{最小权完美匹配启发式}
-
-曼哈顿距离启发式忽略了箱子与目标之间的分配关系。使用匈牙利算法求解箱子与目标之间的最优匹配，可以获得更强的启发式函数：
-
-\begin{equation}
-h_{MWPM}(s) = \min_{\pi} \sum_{i=1}^{n} C[i][\pi(i)]
-\end{equation}
-
-其中$\pi$是$[1, n]$的一个排列，$C[i][j]$是第$i$个箱子到第$j$个目标的曼哈顿距离。匈牙利算法的时间复杂度为$O(n^3)$，但它提供的启发值更紧致，能有效减少搜索节点数。
-
-\subsubsection{线性冲突启发式}
-
-线性冲突（Linear Conflict）是对曼哈顿距离的增强。对于同一行或同一列上的两个箱子，如果它们互相阻碍对方到达目标，则增加2的惩罚：
-
-\begin{equation}
-h_{LC}(s) = h_{Manhattan}(s) + 2 \times (row\_conflicts + col\_conflicts)
-\end{equation}
-
-该启发式函数满足一致性（Consistency），因为它不会高估实际代价。
-
-\subsubsection{复合启发式}
-
-为获得更强的启发式信息，可以将多个启发式函数组合：
-
-\begin{equation}
-h_{max}(s) = \max(h_1(s), h_2(s), ..., h_k(s))
-\end{equation}
-
-复合启发式的优势在于它能同时考虑多个剪枝因素，但计算成本也相应增加。
-
-\subsection{死锁检测机制}
-
-死锁检测是推箱子求解系统中的关键优化技术。当状态被判定为死锁时，启发式函数返回$\infty$，使IDA*算法立即剪枝该分支。
-
-\subsubsection{角落死锁检测}
-
-角落死锁是最基本的死锁形式。当箱子位于角落位置且该位置不是目标点时，箱子无法移动：
-
-\begin{equation}
-isCornerDeadlock(b) = (isCorner(b) \land b \notin T)
-\end{equation}
-
-其中$isCorner(b)$判断箱子是否在角落，角落定义为左右边界之一与上下边界之一同时被墙或边界封闭的位置。
-
-\subsubsection{靠墙并排死锁检测}
-
-两个箱子靠墙并排时，如果它们的上下（或左右）两侧都被封闭，则形成死锁：
-
-\begin{equation}
-isWallDeadlock(b_1, b_2) = (isAdjacent(b_1, b_2) \land isAgainstWall(b_1, b_2) \land (blockedAbove(b_1, b_2) \lor blockedBelow(b_1, b_2)))
-\end{equation}
-
-\subsubsection{隧道死锁检测}
-
-当箱子进入狭窄通道且通道两端都被封闭时，形成隧道死锁：
-
-\begin{equation}
-isTunnelDeadlock(b) = (isInTunnel(b) \land tunnelEndsBlocked(b))
-\end{equation}
-
-\subsection{IDA*算法流程设计}
-
-IDA*算法的搜索流程如下：
-
-\begin{algorithm}[H]
-\caption{推箱子IDA*求解算法}
-\DontPrintSemicolon
-\SetAlgoLined
-\KwIn{初始状态$s_0$}
-\KwOut{解决方案或失败}
-
-初始化Zobrist哈希表\;
-$bound \leftarrow h(s_0)$\;
-$visited \leftarrow \{H(s_0): 0\}$\;
-\While{$true$}{
-    $t \leftarrow Search(s_0, 0, bound, path, moves)$\;
-    \If{$t = FOUND$}{\Return{$moves$}}
-    \If{$t = \infty$}{\Return{失败}}
-    $bound \leftarrow t$\;
-}
-
-\BlankLine
-\textbf{Procedure} $Search(s, g, bound, path, moves)$:\;
-\Indp
-    $f \leftarrow g + h(s)$\;
-    \If{$f > bound$}{\Return{$f$}}
-    \If{$h(s) = 0$}{\Return{$FOUND$}}
-    \If{$isDeadlock(s)$}{\Return{$\infty$}}
-    $min \leftarrow \infty$\;
-    $legalMoves \leftarrow getLegalMoves(s)$\;
-    \ForEach{$(dir, boxPos)$ in $legalMoves$}{
-        $s' \leftarrow applyMove(s, dir, boxPos)$\;
-        $h' \leftarrow H(s')$\;
-        \If{$h' \in visited \land visited[h'] \leq g+1$}{\Continue}
-        $visited[h'] \leftarrow g+1$\;
-        $path.push(s')$\;
-        $moves.push(dir)$\;
-        $t \leftarrow Search(s', g+1, bound, path, moves)$\;
-        \If{$t = FOUND$}{\Return{$FOUND$}}
-        \If{$t < min$}{$min \leftarrow t$}
-        $path.pop()$\;
-        $moves.pop()$\;
-    }
-    \Return{$min$}\;
-\Indm
-\end{algorithm}
+由上可见，课程实例总数为 62，搜索空间约为 $50^{62} \times 10^{62} \approx 10^{167}$ 量级，完全无法通过枚举求解，必须借助启发式方法。
