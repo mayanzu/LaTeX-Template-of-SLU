@@ -1,4 +1,4 @@
-% ================= 文档用途说明 =================
+﻿% ================= 文档用途说明 =================
 %{
 %   模板来源：安徽三联学院 马仲军老师 编写
 %   GitHub：https://github.com/mayanzu/LaTeX-Template-of-SLU
@@ -132,14 +132,25 @@
 \usepackage{xlop}
 \usepackage{tabularx}
 \usepackage{color,xcolor}
-\usepackage[boxed,ruled,lined,linesnumbered]{algorithm2e}
+\usepackage[ruled,lined,linesnumbered]{algorithm2e}
 \usepackage{algorithmic}
+\SetKw{Continue}{continue}
+\SetAlFnt{\small}
+\SetAlgoBreakAlgos
+\setlength{\algomaxheight}{0pt}
 \usepackage{listings,lstautogobble}
 \usepackage{makecell}
 \usepackage{underscore}
 \setmainfont{Times New Roman}
 \setcitestyle{numbers,square}
 \newcommand{\upcite}[1]{$^{[#1]}$}
+
+\let\origincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{%
+  \IfFileExists{#2}%
+    {\origincludegraphics[#1]{#2}}%
+    {\fbox{\parbox[c][5cm][c]{0.8\linewidth}{\centering\color{gray}\itshape 缺失图片占位：\detokenize{#2}}}}%
+}
 
 %-----------------------------对目录格式进行修改--------------------------------%
 \usepackage{tocloft}
@@ -182,6 +193,7 @@
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
 
 \lstset{
   commentstyle= \color{red!50!green!50!blue!50},
@@ -244,6 +256,7 @@
   },
   subsubsection={
     format=\heiti\zihao{-4},
+    indent=2\ccwd,
     beforeskip=0\baselineskip,
     afterskip=0\baselineskip,
   },
@@ -272,6 +285,7 @@
 
 
 %--------------------开始正文部分--------------------------%
+
 \begin{document}
 
 \thispagestyle{empty}
@@ -291,7 +305,7 @@
 \hspace*{\fill}
 \pagestyle{body}
 \tableofcontents
-\clearpage
+\newpage
 \setcounter{page}{1}
 \pagenumbering{arabic}
 \pagestyle{body}
@@ -306,7 +320,7 @@
 	\newpage\input{"body/7.tex"}
 \end{sloppypar}
 
-\clearpage
+\newpage
 \hspace*{\fill}
 \addcontentsline{toc}{section}{参考文献}
 \heiti
@@ -341,3 +355,6 @@
 \end{sloppypar}
 
 \end{document}
+
+
+

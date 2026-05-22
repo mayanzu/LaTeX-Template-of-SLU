@@ -1,115 +1,189 @@
-\hspace*{\fill} %标题前空两行
+﻿\hspace*{\fill}
 \section{系统需求分析与总体设计}
 
 \subsection{功能需求分析}
 
-系统涉及两种使用方式：玩家手动操控和旁观AI自动跑。两种模式底层游戏逻辑完全一样，区别只在于"谁来决定下一步往哪走"。
+推箱子求解系统的核心功能需求包括以下几个方面：
 
-贪吃蛇的基本规则得先保证没问题。蛇在网格里移动，每步走一格；食物随机出现在空闲格子上；蛇头碰到食物就吃掉，蛇身加一格；撞墙或者撞自己就死；实时显示得分。这些规则看起来简单，但每个都有坑。比如"食物随机出现"——如果蛇身占满了所有格子，食物就没地方放了，这时候游戏应该结束。还有，蛇身特别长的时候，空闲格子很少，随机生成食物可能要试很多次，得设个上限。
+\textbf{关卡解析功能}：系统需要支持标准XSB格式的关卡文件解析。XSB格式使用特定字符表示地图元素：\texttt{\#}表示墙，\texttt{@}表示玩家，\texttt{+}表示玩家在目标点上，\texttt{\$}表示箱子，\texttt{*}表示箱子在目标点上，\texttt{.}表示目标点，空格表示地板。解析器应能够从文件或字符串中提取关卡信息，验证关卡合法性（箱子数等于目标数、恰好一个玩家等），并生成初始状态。
 
-手动模式用方向键控制，空格暂停。一个容易忽略的细节：蛇正在往右走，你突然按左键，直接反向会撞到自己第二节身体。所以要禁止180度反向，但90度转向是可以的。实现的时候只需要判断新方向和当前方向的点积是不是-1就行。
+\textbf{游戏引擎功能}：实现推箱子的基本规则逻辑。玩家可以向四个方向移动；如果玩家移动方向上有箱子且箱子另一侧为空地或目标，则箱子被推动；玩家不能穿过箱子，不能穿过墙壁；当所有箱子都推到目标点上时，关卡完成。
 
-自动模式是重点。每帧调A*算蛇头到食物的最优路径，沿路径第一步走。有个工程上的坑：A*算出来的路径是基于当前蛇身状态的，但蛇走一步之后蛇身变了，后面的路径可能就失效了。所以每步移动后要验证缓存路径还通不通，不通就重新算。
+\textbf{求解引擎功能}：这是系统的核心。实现IDA*搜索算法，能够在给定的初始状态下搜索解决问题的方案。系统应能处理不同规模和难度的关卡，并返回解决方案路径。
 
-可视化方面，游戏画面要画网格、蛇身、食物、得分。还要能调速度——AI模式下太快看不清蛇的动作，太慢又没耐心看。用方向键或者滑块都能实现。
+\textbf{可视化功能}：提供解决方案的实时回放或步骤展示功能，用户能够直观地观察到从初始状态到目标状态的解决过程。
 
 \subsection{非功能需求分析}
 
-实时性是游戏最基本的要求。目标帧率60fps，单帧时间预算：
-\begin{equation}
-	T_{frame} = \frac{1000}{FPS} \approx 16.7 \text{ms}
-\end{equation}
-每帧要完成事件处理、状态更新（包括A*寻路）和渲染三步。各步耗时加起来不能超预算：
-\begin{equation}
-	T_{event} + T_{update} + T_{render} \le T_{frame}
-\end{equation}
-A*搜索耗时超了帧预算，画面就会卡。$20\times20$网格上一般几毫秒就跑完了，不会超。网格大了或者蛇身特别长的时候才需要注意。
+\textbf{搜索效率}：对于中等难度关卡（5个箱子以内），系统应在数秒内完成求解；对于较难关卡，应能在合理时间内给出结果或判定无解。
 
-代码结构得清楚。游戏逻辑、寻路算法、渲染之间应该接口明确，别互相牵扯。Python用模块化就能做到——每个功能一个\texttt{.py}文件。命名和注释也得注意，虽然赶deadline的时候很容易偷懒，但后面写论文要回头翻代码，没注释会很痛苦。
+\textbf{内存效率}：采用IDA*算法保证内存复杂度为$O(d)$，其中$d$为解的深度。状态存储使用Zobrist Hashing实现$O(1)$的查重操作。
 
-系统应该方便切换寻路算法。现在用A*，以后可能想试试BFS、Dijkstra或者JPS。如果寻路和游戏逻辑写死在一起，换个算法就得改一大片。用策略模式（Strategy Pattern）把寻路接口抽出来会好很多。
+\textbf{可扩展性}：系统设计应支持多种启发式函数的切换和新增，便于进行算法对比研究。
 
-Python和Pygame本身就是跨平台的，Windows、macOS、Linux理论上都能跑。实际测的时候发现不同平台键盘事件处理有点差异——macOS某些键码返回值跟Windows不一样。好在本项目只用方向键和空格，都是标准键位，影响不大。
+\textbf{准确性}：系统返回的解决方案必须经过验证，保证其正确性。
 
 \subsection{系统总体架构设计}
 
-整体分四层，从下往上：
+系统采用模块化架构设计，自底向上分为四个层次：
 
-数据层管核心状态——网格地图（标记哪些格子被蛇占了）、蛇的位置序列、食物位置、得分等。这层不掺杂业务逻辑，只提供数据存取。
+\textbf{数据层}：管理推箱子游戏的核心状态数据，包括地图网格、箱子位置、玩家位置、目标位置等。该层提供状态的读取和修改接口。
 
-算法层封装寻路。以A*为核心，同时留了扩展接口，以后想换别的搜索策略也方便。这层接收起点、目标和障碍物信息，返回路径或者"不可达"。
+\textbf{算法层}：封装核心搜索算法，包括IDA*搜索、启发式函数计算、死锁检测和状态哈希等。该层是系统的核心模块。
 
-逻辑层处理游戏规则和AI决策。调算法层拿路径，根据路径和游戏规则（碰撞检测、吃食物、蛇身增长等）更新数据层。AI的多层决策策略也在这层实现。
+\textbf{引擎层}：实现游戏规则逻辑，处理玩家输入、状态转移、目标检测等功能。
 
-表现层用Pygame做渲染和输入。从数据层读状态画到屏幕，把键盘输入转成游戏事件传给逻辑层。
+\textbf{表现层}：实现可视化功能，包括ASCII字符渲染和解决方案回放。
 
-% 此处可插入系统架构图
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.8\linewidth]{pic/system_architecture.png}
-%   \caption{系统总体架构图}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\linewidth]{pic/system_architecture.png}
+  \caption{推箱子求解系统架构图}
+\end{figure}
 
-分层的好处是改某一层不影响其他层。比如把Pygame换成别的渲染库，只改表现层，逻辑和算法完全不用动。当然分层也有代价——层和层之间传数据要适配，Python没有编译期类型检查，接口不匹配的错误要到运行时才暴露。
+\subsection{状态表示设计}
 
-\subsection{模块划分}
+推箱子状态是求解系统中最关键的数据结构。一个状态$s$可以表示为一个二元组：
 
-按上面的架构，系统分成这些模块：
-
-主控模块：入口，初始化Pygame、创建窗口、跑主循环。主循环里依次调事件处理、状态更新、渲染。
-
-游戏逻辑模块：维护游戏核心状态——网格、蛇的队列、食物位置等。提供移动、碰撞检测、吃食物、算分等方法。这模块是整个系统的发动机，别的模块都围着它转。
-
-寻路算法模块：实现A*。包含节点类（Node）、优先队列、开放/关闭列表、邻居扩展、启发式计算等功能。对外提供\texttt{find\_path(start, goal, obstacles)}接口。
-
-AI决策模块：封装AI行为策略。基本模式调寻路算法找路径，路径不可达就切求生策略。逻辑不复杂，但模式切换的时机和条件要处理好。
-
-渲染模块：把游戏状态可视化。画网格背景、蛇身（蛇头和蛇身颜色或形状区分）、食物、得分、按钮等。渲染只读数据层状态，不改任何游戏逻辑。
-
-事件处理模块：捕获Pygame的键盘鼠标事件，转成内部指令（改方向、暂停、调速、切模式等）。
-
-% 此处可插入模块关系图
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.8\linewidth]{pic/module_diagram.png}
-%   \caption{模块关系图}
-% \end{figure}
-
-\subsection{数据流设计}
-
-游戏运行时的数据流是个循环。
-
-输入阶段，事件处理模块从Pygame事件队列读用户输入，转成内部指令传给游戏逻辑。
-
-更新阶段，逻辑模块根据指令和当前状态执行一帧更新：AI模式就调寻路算路径、选方向；然后执行蛇移动、碰撞检测、判断是否吃到食物。碰撞检测的效率取决于数据结构——用集合（set）存蛇身位置的话，单次检测$O(1)$：
 \begin{equation}
-	T_{collision} =
-	\begin{cases}
-		O(1) & \text{用集合存蛇身} \\
-		O(L) & \text{用列表存蛇身}
-	\end{cases}
+s = (B, P)
 \end{equation}
-$L$是蛇身长度。本系统用集合，保证检测够快。吃到食物就蛇身加一、得分加一、食物重新生成。这阶段数据变化最密集。
 
-渲染阶段，渲染模块从数据层读状态画到窗口上。
+其中$B = (b_1, b_2, ..., b_n)$是$n$个箱子位置的集合，$P = (x_p, y_p)$是玩家位置。
 
-% 此处可插入数据流图
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.8\linewidth]{pic/dataflow.png}
-%   \caption{游戏数据流图}
-% \end{figure}
+状态压缩方案采用Zobrist Hashing技术。对于地图尺寸为$W \times H$、箱子数量为$n$的关卡，预先生成以下随机数表：
 
-有个关键设计：什么时候调A*？两种选择——每帧都调，或者只在路径失效时调。每帧调的话蛇总是拿到最新最优路径，响应最快，但计算开销大，简单场景做了很多重复计算。只在失效时调能省计算量，但反应可能不够及时。
+\begin{itemize}
+\item $BoxTable[y][x][i]$：64位随机数，表示第$i$个箱子位于$(x, y)$位置
+\item $PlayerTable[y][x]$：64位随机数，表示玩家位于$(x, y)$位置
+\item $CurrentHash$：64位随机数，作为异或运算的初始值
+\end{itemize}
 
-设网格$W \times H$，蛇长$L$，障碍物$|O|$个，A*搜索的状态空间：
+状态的Zobrist哈希值计算公式为：
+
 \begin{equation}
-	|V_{free}| = W \times H - L - |O|
+H(s) = CurrentHash \oplus \bigoplus_{i=1}^{n} BoxTable[b_i.y][b_i.x][i] \oplus PlayerTable[P.y][P.x]
 \end{equation}
-随着游戏进行$L$增大，$|V_{free}|$变小，搜索空间缩小但路径约束增多。
 
-本系统折中：每帧调A*，但限制最大扩展节点数$N_{max}$（设1000）：
+该方案的优势在于：当状态发生改变（如移动箱子）时，只需执行异或操作即可$O(1)$更新哈希值，无需重新计算整个状态的哈希。
+
+\subsection{启发式函数设计}
+
+启发式函数$h(n)$的设计是决定IDA*搜索效率的核心因素。本系统实现了多种启发式函数，下面对其进行详细介绍。
+
+\subsubsection{曼哈顿距离启发式}
+
+曼哈顿距离是最基础的启发式函数，对于每个箱子，计算其到最近目标点的曼哈顿距离，然后求和：
+
 \begin{equation}
-	|closed\_set| \le N_{max}
+h_{Manhattan}(s) = \sum_{i=1}^{n} \min_{t \in T} (|b_i.x - t.x| + |b_i.y - t.y|)
 \end{equation}
-限制内找不到就返回"不可达"。这样保证了及时性，又避免大搜索空间耗时过长。代价是极端情况下可能漏掉需要搜超过$N_{max}$个节点才能到的路径——$20\times20$网格上这种情况很少见。
+
+其中$T$是目标点集合。该启发式函数满足可采纳性（Admissible），因为在无障碍的空间中，曼哈顿距离恰好等于最短路径长度。
+
+\subsubsection{最小权完美匹配启发式}
+
+曼哈顿距离启发式忽略了箱子与目标之间的分配关系。使用匈牙利算法求解箱子与目标之间的最优匹配，可以获得更强的启发式函数：
+
+\begin{equation}
+h_{MWPM}(s) = \min_{\pi} \sum_{i=1}^{n} C[i][\pi(i)]
+\end{equation}
+
+其中$\pi$是$[1, n]$的一个排列，$C[i][j]$是第$i$个箱子到第$j$个目标的曼哈顿距离。匈牙利算法的时间复杂度为$O(n^3)$，但它提供的启发值更紧致，能有效减少搜索节点数。
+
+\subsubsection{线性冲突启发式}
+
+线性冲突（Linear Conflict）是对曼哈顿距离的增强。对于同一行或同一列上的两个箱子，如果它们互相阻碍对方到达目标，则增加2的惩罚：
+
+\begin{equation}
+h_{LC}(s) = h_{Manhattan}(s) + 2 \times (row\_conflicts + col\_conflicts)
+\end{equation}
+
+该启发式函数满足一致性（Consistency），因为它不会高估实际代价。
+
+\subsubsection{复合启发式}
+
+为获得更强的启发式信息，可以将多个启发式函数组合：
+
+\begin{equation}
+h_{max}(s) = \max(h_1(s), h_2(s), ..., h_k(s))
+\end{equation}
+
+复合启发式的优势在于它能同时考虑多个剪枝因素，但计算成本也相应增加。
+
+\subsection{死锁检测机制}
+
+死锁检测是推箱子求解系统中的关键优化技术。当状态被判定为死锁时，启发式函数返回$\infty$，使IDA*算法立即剪枝该分支。
+
+\subsubsection{角落死锁检测}
+
+角落死锁是最基本的死锁形式。当箱子位于角落位置且该位置不是目标点时，箱子无法移动：
+
+\begin{equation}
+isCornerDeadlock(b) = (isCorner(b) \land b \notin T)
+\end{equation}
+
+其中$isCorner(b)$判断箱子是否在角落，角落定义为左右边界之一与上下边界之一同时被墙或边界封闭的位置。
+
+\subsubsection{靠墙并排死锁检测}
+
+两个箱子靠墙并排时，如果它们的上下（或左右）两侧都被封闭，则形成死锁：
+
+\begin{equation}
+isWallDeadlock(b_1, b_2) = (isAdjacent(b_1, b_2) \land isAgainstWall(b_1, b_2) \land (blockedAbove(b_1, b_2) \lor blockedBelow(b_1, b_2)))
+\end{equation}
+
+\subsubsection{隧道死锁检测}
+
+当箱子进入狭窄通道且通道两端都被封闭时，形成隧道死锁：
+
+\begin{equation}
+isTunnelDeadlock(b) = (isInTunnel(b) \land tunnelEndsBlocked(b))
+\end{equation}
+
+\subsection{IDA*算法流程设计}
+
+IDA*算法的搜索流程如下：
+
+\begin{algorithm}[H]
+\caption{推箱子IDA*求解算法}
+\DontPrintSemicolon
+\SetAlgoLined
+\KwIn{初始状态$s_0$}
+\KwOut{解决方案或失败}
+
+初始化Zobrist哈希表\;
+$bound \leftarrow h(s_0)$\;
+$visited \leftarrow \{H(s_0): 0\}$\;
+\While{$true$}{
+    $t \leftarrow Search(s_0, 0, bound, path, moves)$\;
+    \If{$t = FOUND$}{\Return{$moves$}}
+    \If{$t = \infty$}{\Return{失败}}
+    $bound \leftarrow t$\;
+}
+
+\BlankLine
+\textbf{Procedure} $Search(s, g, bound, path, moves)$:\;
+\Indp
+    $f \leftarrow g + h(s)$\;
+    \If{$f > bound$}{\Return{$f$}}
+    \If{$h(s) = 0$}{\Return{$FOUND$}}
+    \If{$isDeadlock(s)$}{\Return{$\infty$}}
+    $min \leftarrow \infty$\;
+    $legalMoves \leftarrow getLegalMoves(s)$\;
+    \ForEach{$(dir, boxPos)$ in $legalMoves$}{
+        $s' \leftarrow applyMove(s, dir, boxPos)$\;
+        $h' \leftarrow H(s')$\;
+        \If{$h' \in visited \land visited[h'] \leq g+1$}{\Continue}
+        $visited[h'] \leftarrow g+1$\;
+        $path.push(s')$\;
+        $moves.push(dir)$\;
+        $t \leftarrow Search(s', g+1, bound, path, moves)$\;
+        \If{$t = FOUND$}{\Return{$FOUND$}}
+        \If{$t < min$}{$min \leftarrow t$}
+        $path.pop()$\;
+        $moves.pop()$\;
+    }
+    \Return{$min$}\;
+\Indm
+\end{algorithm}

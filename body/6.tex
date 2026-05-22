@@ -1,171 +1,48 @@
 \hspace*{\fill}
 
-\section{系统测试与结果分析}
+\section{总结与展望}
 
-测游戏程序挺烦的，交互性强，很多bug特定时序下才触发，单元测试覆盖不了太多。这章从单元测试、功能测试、性能测试三个角度来验。
+\subsection{工作总结}
 
-\subsection{测试环境}
+本文设计并实现了一个基于启发式搜索策略的推箱子游戏求解系统。主要工作总结如下：
 
-两台机器上测的：
+\textbf{算法设计与实现}：系统采用IDA*作为核心搜索算法，有效解决了传统A*算法内存消耗过大的问题。通过Zobrist Hashing技术实现$O(1)$的状态查重，确保搜索过程中不会陷入循环。
 
-\begin{table}[H]
-	\renewcommand\arraystretch{2}
-	\centering
-	\caption{测试环境}
-	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
-		\hline
-		\textbf{项目} & \textbf{设备A}    & \textbf{设备B}   \\
-		\hline
-		CPU         & Intel i7-12700H & Intel i5-10400 \\
-		内存          & 16GB DDR5       & 8GB DDR4       \\
-		系统          & Windows 11      & Ubuntu 22.04   \\
-		Python      & 3.11.5          & 3.10.12        \\
-		Pygame      & 2.5.2           & 2.5.2          \\
-		\hline
-	\end{tabularx}
-\end{table}
+\textbf{启发式函数研究}：系统实现并对比了多种启发式函数：
+\begin{itemize}
+\item 曼哈顿距离：基础启发式，实现简单但效果有限
+\item 最小权完美匹配（MWPM）：使用匈牙利算法求解最优分配，平均减少45\%节点扩展
+\item 线性冲突：增强型曼哈顿距离，考虑同行/列箱子的相互阻碍，平均减少50\%节点扩展
+\end{itemize}
 
-\subsection{单元测试设计与执行}
+\textbf{死锁检测机制}：实现了三种死锁检测机制——角落死锁、靠墙并排死锁和隧道死锁。实验表明，死锁检测能够剪枝约40\%的无望搜索分支，显著提升搜索效率。
 
-用Python自带的\texttt{unittest}写的，共22个用例，覆盖四个核心类：
+\textbf{系统架构}：采用模块化设计，将地图解析、游戏引擎、求解引擎和可视化界面分离，便于维护和扩展。系统支持标准XSB格式关卡文件，具备解决方案回放功能。
 
-\begin{table}[H]
-	\renewcommand\arraystretch{2}
-	\centering
-	\caption{单元测试用例分类}
-	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\raggedright\arraybackslash}X >{\centering\arraybackslash}X}
-		\hline
-		\textbf{测试类}           & \textbf{测试数量} & \textbf{覆盖内容}            & \textbf{全部通过} \\
-		\hline
-		TestSnake              & 4             & 初始化、移动、增长、反向禁止           & 是             \\
-		TestAStar              & 6             & 直线路径、障碍绕行、无路径、同起点终点、可达空间 & 是             \\
-		TestSmartDecisionMaker & 4             & 最近食物查找、方向转换、安全移动、综合决策    & 是             \\
-		TestGame               & 8             & 初始化、三种碰撞、食物碰撞、暂停、重置      & 是             \\
-		\hline
-		\textbf{合计}            & \textbf{22}   &                          & \textbf{是}    \\
-		\hline
-	\end{tabularx}
-\end{table}
+\textbf{实验验证}：在Microban关卡集上的测试表明，IDA*算法结合MWPM启发式和死锁检测，能够成功求解全部15个关卡，验证了系统的有效性和正确性。
 
-测试中发现一个容易漏的边界：\texttt{test\_food\_collision}要验证吃食物后\texttt{grow\_pending}增加、下次\texttt{move()}后蛇身才实际增长。最开始直接断言body长度不变，结果\texttt{grow()}调用后body确实没变（因为用了pending机制），逻辑上容易搞混。后来改成同时检查\texttt{grow\_pending}和下次移动后的长度才测对。
+\subsection{研究局限性}
 
-执行结果：
+尽管系统取得了一定效果，但仍存在以下局限性：
 
-\begin{lstlisting}[language={},caption={单元测试执行输出}]
-..............
-----------------------------------------------------------------------
-Ran 22 tests in 0.002s
+\textbf{启发式函数的一致性问题}：MWPM启发式虽然紧致性更好，但计算成本较高。对于大规模关卡（如10个箱子以上），$O(n^3)$的匈牙利算法可能成为性能瓶颈。
 
-OK
-\end{lstlisting}
+\textbf{静态死锁检测的局限}：当前的死锁检测仅基于静态地图结构分析，未考虑玩家可达性对死锁状态的影响。未来可引入动态死锁检测，通过BFS/DFS验证状态的实际可达性。
 
-22个全过，耗时2ms。没有渲染和IO，纯逻辑计算，所以很快。
+\textbf{无法处理极大规模关卡}：对于包含超过10个箱子的关卡，即使采用IDA*算法，搜索空间仍然过于庞大。这是因为推箱子问题的状态空间复杂度为$O((WH)^n)$，其中$n$为箱子数量。
 
-\subsection{功能测试}
+\subsection{未来研究方向}
 
-功能测试跑实际游戏验证各模块协同。验证点包括：窗口1200$\times$600、标题正确、蛇居中、障碍物和食物生成正确。自动模式蛇能自主找食物进食、得分累加、蛇身增长。手动模式\texttt{M}键切换后方向键控制、A*预览消失。空格暂停恢复、\texttt{R}重开。撞墙或自身后游戏结束、显示遮罩和最终分。A*可视化面板右侧实时显示搜索过程（绿起点、红终点、蓝已探索、橙待探索、黄路径）。
+针对上述局限性，未来研究可在以下方向展开：
 
-图6-1是AI自动模式的运行界面。左侧游戏区，蛇身绿色方块（蛇头更亮），红色圆形食物，灰色方块障碍物，蓝色线条A*预估路径。右侧A*可视化面板实时展示搜索过程。
+\textbf{模式数据库（Pattern Database）}：通过预计算子问题的最优代价构建启发式数据库。文献\upcite{culberson1997}表明，模式数据库能够大幅提升推箱子问题的求解效率。
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\linewidth]{pic/screenshot_autoplay.png}
-	\caption{AI自动模式运行界面（含A*可视化）}
-\end{figure}
+\textbf{分布式并行求解}：利用多核CPU或GPU进行并行搜索。常见策略包括并行IDA*（Parallel IDA*）和基于工作窃取的负载均衡算法。
 
-图6-2是手动模式。切到手动后A*预览和可视化面板都不显示，玩家方向键控制。
+\textbf{基于学习的启发式优化}：利用深度强化学习技术自动学习更优的启发式函数。当前已有研究将神经网络应用于推箱子问题\upcite{sokobanNN2020}，展现出超越传统启发式的潜力。
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\linewidth]{pic/screenshot_manual.png}
-	\caption{手动模式运行界面}
-\end{figure}
+\textbf{推箱子问题生成}：设计能够自动生成有趣且可解关卡的算法，评估关卡难度等级，为游戏设计提供支持。
 
-图6-3是游戏结束。撞墙或撞自己后屏幕中央半透明遮罩，显示"游戏结束"和最终得分。
+\subsection{结论}
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\linewidth]{pic/screenshot_gameover.png}
-	\caption{游戏结束界面}
-\end{figure}
-
-\subsection{性能测试}
-
-主要看两个指标：A*搜索扩展节点数和路径长度。搜索效率定义为路径长度和扩展节点数的比值：
-\begin{equation}
-	\eta = \frac{|path|}{|closed\_set|}
-\end{equation}
-$|path|$是路径长度，$|closed\_set|$是关闭列表节点数。$\eta$越接近1说明搜索越高效——启发式精确引导了方向，大部分扩展节点都在最终路径上。测试方法：不同障碍物密度下固定起点终点记录搜索过程。
-
-\begin{table}[H]
-	\renewcommand\arraystretch{2}
-	\centering
-	\caption{不同障碍物密度下的A*搜索性能}
-	\begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-		\hline
-		\textbf{障碍物密度} & \textbf{搜索节点数} & \textbf{路径长度} & \textbf{耗时(ms)} & \textbf{内存峰值(MB)} \\
-		\hline
-		10\%           & 45             & 12            & 0.12            & 2.1               \\
-		20\%           & 89             & 15            & 0.28            & 2.3               \\
-		30\%           & 156            & 21            & 0.45            & 2.8               \\
-		40\%           & 234            & 28            & 0.68            & 3.5               \\
-		50\%           & 312            & 35            & 0.92            & 4.2               \\
-		\hline
-	\end{tabularx}
-\end{table}
-
-数据趋势很明显：障碍物密度每加10\%，搜索节点数大致翻倍，耗时增长温和因为每个节点操作是常数时间。内存涨是因为open set和closed set膨胀——高密度下A*要探索更多"死胡同"才能找到路。
-
-不太好的发现：障碍物密度超50\%后A*经常搜了大量节点还是失败，因为目标被完全围住。这时候退化到BFS也找不到，只能靠安全评估随机选方向。高密度下存活率骤降。
-
-\subsection{AI策略对比测试}
-
-验证A*+安全评估组合策略的效果，跟几种基准策略对比。每种跑$N$局（$N=100$）取平均。存活率定义：
-\begin{equation}
-	R_{survive} = \frac{N_{alive}}{N} \times 100\%
-\end{equation}
-$N_{alive}$是蛇身长度达到阈值$L_{th}$（$L_{th}=20$）的局数。平均得分：
-\begin{equation}
-	\bar{S} = \frac{1}{N} \sum_{i=1}^{N} S_i
-\end{equation}
-$S_i$是第$i$局最终得分。
-
-\begin{table}[H]
-	\renewcommand\arraystretch{2}
-	\centering
-	\caption{不同AI策略的存活率与得分对比}
-	\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-		\hline
-		\textbf{策略} & \textbf{存活率(\%)} & \textbf{平均得分} & \textbf{最高得分} & \textbf{平均蛇长} \\
-		\hline
-		随机移动        & 12               & 45            & 120           & 7             \\
-		纯BFS        & 45               & 180           & 450           & 20            \\
-		纯A*         & 67               & 350           & 800           & 37            \\
-		A* + 安全评估   & 89               & 520           & 1250          & 54            \\
-		\hline
-	\end{tabularx}
-\end{table}
-
-结果在意料之中但也有问题。纯A*的67\%存活率看着还行，但分析失败的33\%，大多数是因为A*找的路把蛇引向死角——路径确实最短，但走到尽头后蛇被自己围住。
-
-加安全评估后存活率到89\%，但平均路径变长了——安全评估倾向选"空间大"的方向而不是"距离近"的方向，食物争夺效率有所牺牲。有几局蛇在地图边缘绕了一大圈才找到食物，看着挺蠢的。
-
-最高得分1250对应蛇长127格，40$\times$30网格里占约10\%空间。空间占用率：
-\begin{equation}
-	\rho = \frac{L}{W \times H} \times 100\%
-\end{equation}
-$\rho$接近100\%时食物生成经常失败，进入"吃满地图"的终局。理论上蛇最大长度$W \times H - 1$（留一格给食物）。
-
-图6-4直观展示了四种策略的对比。安全评估把存活率从67\%提到89\%，最高得分从800到1250提升更大，因为安全策略让蛇活得更久、有更多机会进食。
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.85\linewidth]{pic/strategy_comparison.png}
-	\caption{不同AI策略存活率与得分对比}
-\end{figure}
-
-\subsection{测试总结}
-
-测试覆盖了单元到系统级别。22个单元测试全过，功能测试验证了协同正确性。性能测试揭示了高障碍物密度下A*的退化问题，策略对比量化了安全评估的贡献。
-
-坦率说测试不够充分。压力测试（极端网格尺寸、超高帧率）没做，跨平台只在两台机器上跑过，交互测试也只覆盖了主要路径。要作为正式产品发布这些都得补。
+推箱子作为经典的AI搜索问题，其研究对于理解和应用启发式搜索技术具有重要意义。本文实现的求解系统通过结合IDA*算法、高效的启发式函数和死锁检测机制，在保证最优解的前提下有效控制了内存消耗，为推箱子问题的求解提供了一个可行的解决方案。

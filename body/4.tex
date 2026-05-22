@@ -1,321 +1,423 @@
-\hspace*{\fill} %标题前空两行
+\hspace*{\fill}
 
-\section{A*寻路算法设计与优化}
+\section{系统详细设计与实现}
 
-A*是这个系统的决策核心。蛇每走一步都要调一次寻路，算法不仅要找到路，还得在毫秒级跑完。这章从建模开始，一层层展开A*的设计细节、启发式函数怎么选、动态障碍物怎么处理、算法失效了怎么兜底。
+本系统采用C++语言实现，使用CMake作为构建系统。代码组织结构如下：
 
-\subsection{问题建模}
-
-贪吃蛇寻路可以很自然地对应到网格图上的最短路搜索\upcite{1}。把游戏区域看成一个图$G=(V,E)$，顶点集$V$就是每个可达的格子$(x,y)$，$0 \le x < W$，$0 \le y < H$，$W$和$H$是网格宽高。边集$E$表示格子之间的邻接——两个格子$(x_1,y_1)$和$(x_2,y_2)$如果满足：
-\begin{equation}
-	|x_1 - x_2| + |y_1 - y_2| = 1
-\end{equation}
-就有一条无向边，权重都是1。网格图的总节点数和边数：
-\begin{equation}
-	|V| = W \times H, \quad |E| \le 2W \cdot H - W - H
-\end{equation}
-
-这个建模有两个注意点。一是图的拓扑在运行时会变——蛇身一直在动，障碍物集合每帧都不同。二是边权都是1，Dijkstra理论上也行，但没有启发信息引导效率会差很多\upcite{7}。
-
-寻路目标：给定蛇头$s$和食物$g$，在图$G$里找一条$s$到$g$的最短路，且路上所有节点都不在当前障碍物集合里。
-
-% TODO: 插入图4-1 网格图抽象示意图
-
-\subsection{A*算法基本实现}
-
-A*的核心评估函数\upcite{1,2}：
-\begin{equation}
-	f(n) = g(n) + h(n)
-\end{equation}
-$g(n)$是起点到$n$的实际代价，$h(n)$是$n$到目标的估计代价。Python实现里用\texttt{Node}类封装节点信息：
-
-\begin{lstlisting}[language=python,caption={Node类定义（pathfinder.py）}]
-class Node:
-    __slots__ = ('position', 'g', 'h', 'f', 'parent')
-
-    def __init__(self, position: Tuple[int, int], g: int = 0,
-                 h: int = 0, parent: 'Optional[Node]' = None):
-        self.position = position
-        self.g = g
-        self.h = h
-        self.f = g + h
-        self.parent = parent
-
-    def __lt__(self, other: 'Node') -> bool:
-        return self.f < other.f
+\begin{lstlisting}[language=bash,caption={项目目录结构}]
+sokoban_solver/
+├── include/          # 头文件目录
+│   ├── state.hpp     # 状态表示
+│   ├── heuristics.hpp # 启发式函数
+│   ├── ida_star.hpp  # IDA*算法
+│   ├── game_engine.hpp # 游戏引擎
+│   ├── map_parser.hpp # 地图解析器
+│   ├── visualizer.hpp # 可视化
+│   └── solver.hpp    # 主求解器
+├── src/              # 源代码目录
+│   ├── state.cpp
+│   ├── heuristics.cpp
+│   ├── ida_star.cpp
+│   ├── game_engine.cpp
+│   ├── map_parser.cpp
+│   ├── visualizer.cpp
+│   └── solver.cpp
+├── levels/           # 关卡文件
+└── main.cpp          # 主程序入口
 \end{lstlisting}
 
-用\texttt{\_\_slots\_\_}声明固定属性是刻意为之的。40$\times$30的网格上，一次搜索可能创建几百上千个\texttt{Node}对象，\texttt{\_\_slots\_\_}避免每个实例维护\texttt{\_\_dict\_\_}，内存省了大概40\%\upcite{13}。\texttt{\_\_lt\_\_}方法让\texttt{Node}能直接被\texttt{heapq}用，不需要额外比较键。
+\subsection{核心数据结构实现}
 
-算法主体在\texttt{AStar.find\_path}里：
+\subsubsection{状态类设计}
 
-\begin{lstlisting}[language=python,caption={A*核心搜索逻辑（pathfinder.py）}]
-def find_path(self, start, goal):
-    if start == goal:
-        return [start]
+状态类（\texttt{State}）是系统中最核心的数据结构，采用面向对象设计：
 
-    open_set = []
-    closed_set = set()
-    start_node = Node(start, 0, self.heuristic(start, goal))
-    heapq.heappush(open_set, start_node)
-    position_to_node = {start: start_node}
+\begin{lstlisting}[language=c++,caption={State类定义（state.hpp）}]
+class State {
+public:
+    std::vector<Position> boxes;  // 箱子位置集合
+    Position player;              // 玩家位置
+    int width;                    // 地图宽度
+    int height;                   // 地图高度
+    uint64_t hash;               // Zobrist哈希值
 
-    while open_set:
-        current = heapq.heappop(open_set)
+    State() : width(0), height(0), hash(0) {}
 
-        if current.position == goal:
-            path = self.reconstruct_path(current)
-            return path
+    State(int w, int h, const std::vector<Position>& boxes,
+          const Position& player)
+        : boxes(boxes), player(player), width(w), height(h), hash(0) {
+        std::sort(this->boxes.begin(), this->boxes.end());
+    }
 
-        closed_set.add(current.position)
-
-        for dx, dy in self.DIRECTIONS:
-            neighbor_pos = (current.position[0] + dx,
-                          current.position[1] + dy)
-            if neighbor_pos in closed_set or \
-               not self.is_valid(neighbor_pos):
-                continue
-            new_g = current.g + 1
-            if neighbor_pos in position_to_node:
-                neighbor_node = position_to_node[neighbor_pos]
-                if new_g < neighbor_node.g:
-                    neighbor_node.g = new_g
-                    neighbor_node.f = new_g + neighbor_node.h
-                    neighbor_node.parent = current
-                    heapq.heapify(open_set)
-            else:
-                h = self.heuristic(neighbor_pos, goal)
-                neighbor_node = Node(neighbor_pos, new_g, h,
-                                   current)
-                heapq.heappush(open_set, neighbor_node)
-                position_to_node[neighbor_pos] = neighbor_node
-
-    return None
+    bool operator==(const State& other) const;
+    bool operator<(const State& other) const;
+    uint64_t computeHash(const std::vector<std::vector<bool>>& wallGrid,
+                         const std::vector<uint64_t>& boxHash,
+                         const std::vector<uint64_t>& playerHash) const;
+    std::string toString() const;
+};
 \end{lstlisting}
 
-有个细节容易忽略：代码用\texttt{position\_to\_node}字典做$O(1)$的节点查找，避免在\texttt{open\_set}里线性搜索。另外发现更优路径时，代码调\texttt{heapq.heapify(open\_set)}重建堆，而不是弹旧节点再插入新节点。前者$O(n)$，后者$O(\log n)$，但堆化避免了重复节点在堆里积累——Python的\texttt{heapq}不支持Decrease-Key操作，这是个务实的妥协\upcite{10}。
+状态类的设计要点：
+\begin{itemize}
+\item \texttt{boxes}使用向量存储并始终保持有序，确保相同状态有相同的向量表示
+\item \texttt{hash}存储Zobrist哈希值，用于快速状态比较和去重
+\item 拷贝构造函数默认实现，支持深拷贝
+\end{itemize}
 
-路径回溯从终点沿\texttt{parent}指针反向追到起点，再反转列表。
+\subsubsection{位置结构设计}
 
-\subsection{启发式函数的选取与分析}
+\begin{lstlisting}[language=c++,caption={Position结构定义（state.hpp）}]
+struct Position {
+    int x, y;
+    Position() : x(0), y(0) {}
+    Position(int x_, int y_) : x(x_), y(y_) {}
 
-启发式函数$h(n)$直接决定A*的搜索效率和最优性\upcite{3}。二维网格上常见的有三种\upcite{9}：
+    bool operator==(const Position& other) const {
+        return x == other.x && y == other.y;
+    }
 
-曼哈顿距离：
-\begin{equation}
-	h_{Man}(n) = |x_n - x_g| + |y_n - y_g|
-\end{equation}
-只能沿网格方向移动时用这个。
+    bool operator<(const Position& other) const {
+        return y < other.y || (y == other.y && x < other.x);
+    }
 
-欧几里得距离：
-\begin{equation}
-	h_{Euc}(n) = \sqrt{(x_n - x_g)^2 + (y_n - y_g)^2}
-\end{equation}
-允许对角线移动时用。
-
-切比雪夫距离：
-\begin{equation}
-	h_{Che}(n) = \max(|x_n - x_g|, |y_n - y_g|)
-\end{equation}
-八方向移动（对角线代价为1）时用。
-
-三者关系：
-\begin{equation}
-	h_{Euc}(n) \le h_{Che}(n) \le h_{Man}(n) \le h^*(n)
-\end{equation}
-A*要求启发式函数可采纳——不能高估真实代价\upcite{1}。曼哈顿距离在四邻域网格上等于实际最短距离，满足要求。
-
-选曼哈顿距离而不是欧几里得距离还有个性能考虑：\texttt{abs()}比\texttt{sqrt()}快得多。每帧都要调寻路，这个差距会被放大。代码实现很简洁：
-
-\begin{lstlisting}[language=python,caption={启发式函数实现（pathfinder.py）}]
-def heuristic(self, pos1, pos2):
-    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+    Position move(int dir) const {
+        return Position(x + DIR_X[dir], y + DIR_Y[dir]);
+    }
+};
 \end{lstlisting}
 
-曼哈顿距离也有问题。障碍物密集时，它的估计太乐观，A*搜索范围接近Dijkstra。加权A*通过引入权重$\epsilon$提高$h(n)$的比重：
-\begin{equation}
-	f(n) = g(n) + (1 + \epsilon) \cdot h(n), \quad \epsilon \ge 0
-\end{equation}
-能减少搜索节点数，但牺牲了最优性保证。路径代价满足$C \le (1+\epsilon) \cdot C_{opt}$\upcite{5}。本系统\texttt{HEURISTIC\_WEIGHT = 1.0}（即$\epsilon = 0$），选了严格最优。
+位置结构重载了比较运算符，使其可以直接用于STL容器（如集合、优先队列）。
 
-% TODO: 插入图4-2 三种启发式函数对比示意图
+\subsection{Zobrist哈希实现}
 
-\subsection{动态障碍物处理}
+Zobrist哈希的实现利用了64位无符号整数的异或运算性质：
 
-跟静态地图不同，贪吃蛇的蛇身是个动态变化的障碍物集合。每走一步，头部加一格、尾部去掉一格（除非刚吃食物）。这给寻路带来几个麻烦。
+\begin{lstlisting}[language=c++,caption={Zobrist哈希实现（zobrist.hpp）}]
+class ZobristTable {
+public:
+    std::vector<std::vector<std::vector<uint64_t>>> boxTable;
+    std::vector<std::vector<uint64_t>> playerTable;
+    uint64_t currentHash;
 
-\subsubsection{蛇身障碍物建模}
+    void init(int height, int width, int numBoxes) {
+        boxTable.resize(height);
+        for (int y = 0; y < height; y++) {
+            boxTable[y].resize(width);
+            for (int x = 0; x < width; x++) {
+                boxTable[y][x].resize(numBoxes);
+                for (int b = 0; b < numBoxes; b++) {
+                    boxTable[y][x][b] = RandomGenerator::next();
+                }
+            }
+        }
 
-\texttt{SmartDecisionMaker.decide\_next\_move}里，障碍物构建逻辑：
+        playerTable.resize(height);
+        for (int y = 0; y < height; y++) {
+            playerTable[y].resize(width);
+            for (int x = 0; x < width; x++) {
+                playerTable[y][x] = RandomGenerator::next();
+            }
+        }
+        currentHash = RandomGenerator::next();
+    }
 
-\begin{lstlisting}[language=python,caption={障碍物集合构建（decision.py）}]
-body_minus_tail = set(snake.body[:-1]) \
-    if len(snake.body) > 1 else set()
-all_obstacles = obstacles.union(body_minus_tail)
-self.update_obstacles(all_obstacles)
+    uint64_t computeHash(const std::vector<Position>& boxes,
+                         const Position& player) const {
+        uint64_t h = currentHash;
+        for (int i = 0; i < static_cast<int>(boxes.size()); i++) {
+            h ^= boxTable[boxes[i].y][boxes[i].x][i];
+        }
+        h ^= playerTable[player.y][player.x];
+        return h;
+    }
+};
 \end{lstlisting}
 
-关键决策：蛇身除尾巴外都算障碍物，尾巴不纳入。依据是蛇头移动时尾巴也同步前进，尾巴原来的位置会空出来。把尾巴也当障碍物的话，蛇会错过一些合法路径。
+\subsection{启发式函数实现}
 
-这个策略有个风险——假设蛇头到尾巴位置时尾巴一定会移动。如果刚吃了食物（\texttt{grow\_pending > 0}），尾巴不会前移，"尾巴不阻挡"的假设就不成立了。好在碰撞检测函数\texttt{\_check\_collision}每步都重新验证头部位置，所以即使寻路阶段做了乐观假设，实际移动时还是会拦住。这是"规划时乐观、执行时保守"的双层校验。
+\subsubsection{曼哈顿距离启发式}
 
-\subsubsection{路径重计算策略}
+曼哈顿距离启发式是最基础的实现：
 
-障碍物每帧变化，上一帧算的路径下一帧可能就走不通了。本系统用"每帧重新规划"而不是路径跟随验证。前者计算开销更大，但在贪吃蛇这种障碍物高度动态的场景里，后者往往因为路径失效检测和重规划的延迟导致游戏失败。这是计算开销和决策鲁棒性的典型矛盾\upcite{14}。
+\begin{lstlisting}[language=c++,caption={曼哈顿距离启发式（heuristics.cpp）}]
+int ManhattanDistance::h(const State& state) const {
+    int sum = 0;
+    for (const auto& box : state.boxes) {
+        int minDist = std::numeric_limits<int>::max();
+        for (const auto& target : detector->targets) {
+            int dist = std::abs(box.x - target.x) + std::abs(box.y - target.y);
+            minDist = std::min(minDist, dist);
+        }
+        if (minDist == std::numeric_limits<int>::max()) {
+            return std::numeric_limits<int>::max();
+        }
+        sum += minDist;
+    }
 
-\subsection{A*失效时的BFS兜底策略}
+    if (detector && detector->isDeadlock(state)) {
+        return std::numeric_limits<int>::max();
+    }
 
-A*不是万能的。食物被蛇身完全围住、起点和目标之间没路的时候，A*遍历完所有可达节点后返回\texttt{None}。系统设计了分层降级：
-
-\begin{lstlisting}[language=python,caption={多级降级策略（decision.py）}]
-path = self.pathfinder.find_path(head, target_food)
-
-if path and len(path) > 1:
-    self.current_path = path[1:]
-    next_pos = path[1]
-    return self._position_to_direction(head, next_pos)
-else:
-    # A* 失败时，尝试 BFS 找任意通往食物的路径
-    bfs_direction = self._get_bfs_direction(
-        head, target_food, all_obstacles)
-    if bfs_direction:
-        return bfs_direction
-    # BFS 也找不到，才用安全预测
-    return self._get_safe_move_with_prediction(
-        head, safe_obstacles, snake, target_food)
+    return sum;
+}
 \end{lstlisting}
 
-第一级A*找最短路。第二级BFS找任意路径——BFS在等权图上同样保证最短，但不用启发式，搜索顺序由队列FIFO决定，在某些特殊障碍物配置下可能跟A*的剪枝行为有差异。实际上这级BFS更多是健壮性冗余，防止A*的\texttt{is\_valid}判断在边界条件下漏掉可行路径。第三级安全评估——食物确实到不了的时候，蛇应该选一条"能活得更久"的路，别走进死胡同。
+\subsubsection{最小权完美匹配启发式}
 
-BFS实现比较标准：
+最小权完美匹配启发式使用匈牙利算法求解最优分配：
 
-\begin{lstlisting}[language=python,caption={BFS兜底搜索（decision.py）}]
-def _get_bfs_direction(self, head, target, obstacles):
-    from collections import deque
-    queue = deque([(head, [])])
-    visited = {head}
-    while queue:
-        pos, path = queue.popleft()
-        if pos == target:
-            if path:
-                return self._position_to_direction(head, path[0])
-            return None
-        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            new_pos = (pos[0] + dx, pos[1] + dy)
-            if new_pos not in visited and new_pos not in obstacles:
-                visited.add(new_pos)
-                queue.append((new_pos, path + [new_pos]))
-    return None
+\begin{lstlisting}[language=c++,caption={匈牙利算法实现（heuristics.cpp）}]
+int MinimumWeightPerfectMatching::hungarian(
+    const std::vector<std::vector<int>>& cost,
+    int n, std::vector<int>& match) const {
+
+    std::vector<int> u(n+1), v(n+1), p(n+1), way(n+1);
+
+    for (int i = 1; i <= n; i++) {
+        p[0] = i;
+        int j0 = 0;
+        std::vector<int> minv(n+1, INT_MAX);
+        std::vector<char> used(n+1, false);
+
+        do {
+            used[j0] = true;
+            int i0 = p[j0], delta = INT_MAX, j1 = 0;
+
+            for (int j = 1; j <= n; j++) {
+                if (!used[j]) {
+                    int cur = cost[i0-1][j-1] - u[i0] - v[j];
+                    if (cur < minv[j]) {
+                        minv[j] = cur;
+                        way[j] = j0;
+                    }
+                    if (minv[j] < delta) {
+                        delta = minv[j];
+                        j1 = j;
+                    }
+                }
+            }
+
+            for (int j = 0; j <= n; j++) {
+                if (used[j]) {
+                    u[p[j]] += delta;
+                    v[j] -= delta;
+                } else {
+                    minv[j] -= delta;
+                }
+            }
+
+            j0 = j1;
+        } while (p[j0] != 0);
+
+        do {
+            int j1 = way[j0];
+            p[j0] = p[j1];
+            j0 = j1;
+        } while (j0);
+    }
+
+    match.assign(n, -1);
+    for (int j = 1; j <= n; j++) {
+        match[p[j]-1] = j-1;
+    }
+
+    return -v[0];
+}
 \end{lstlisting}
 
-路径存储用"每步追加"（\texttt{path + [new\_pos]}），会创建新列表对象，路径长时有内存开销。更高效的做法是用字典记录前驱节点，但BFS只在A*失效时才调，频率低，当前实现够用。
+\subsection{死锁检测实现}
 
-\subsection{安全评估函数设计}
+死锁检测是推箱子求解系统中的关键优化：
 
-蛇到不了食物的时候，需要一种策略让它"活着"。安全评估函数从多个维度给候选方向打分，形式化定义：
-\begin{equation}
-	S(p) = w_1 \cdot A(p) + w_2 \cdot D(p) + w_3 \cdot N(p) + w_4 \cdot F(p)
-\end{equation}
-$A(p)$是可达空间评分，$D(p)$是边缘惩罚，$N(p)$是邻居数评分，$F(p)$是朝向食物奖励，$w_1 \sim w_4$是权重。蛇选得分最高的方向：
-\begin{equation}
-	d_{next} = \arg\max_{d \in \{up, down, left, right\}} S(p_d)
-\end{equation}
+\begin{lstlisting}[language=c++,caption={角落死锁检测（state.cpp）}]
+bool DeadlockDetector::isCornerDeadlock(const Position& box) const {
+    int x = box.x;
+    int y = box.y;
 
-\begin{lstlisting}[language=python,caption={安全评估函数（decision.py）}]
-def _evaluate_move(self, pos, obstacles, snake,
-                   target_food=None):
-    score = 0
-    # 1. 可达空间评估
-    accessible_space = self.pathfinder.count_accessible_space(
-        pos, obstacles, 10)
-    score += accessible_space * 10
+    if (targetGrid[y][x]) {
+        return false;
+    }
 
-    # 2. 边缘惩罚
-    margin = 3
-    distance_to_edge = min(pos[0], pos[1],
-                          GRID_WIDTH - pos[0] - 1,
-                          GRID_HEIGHT - pos[1] - 1)
-    if distance_to_edge < margin:
-        score -= (margin - distance_to_edge) * 20
+    bool leftWall = (x - 1 < 0) || wallGrid[y][x - 1];
+    bool rightWall = (x + 1 >= width) || wallGrid[y][x + 1];
+    bool topWall = (y - 1 < 0) || wallGrid[y - 1][x];
+    bool bottomWall = (y + 1 >= height) || wallGrid[y + 1][x];
 
-    # 3. 邻居数评估
-    valid_neighbors = 0
-    for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-        neighbor = (pos[0] + dx, pos[1] + dy)
-        if neighbor not in obstacles:
-            valid_neighbors += 1
-    score += valid_neighbors * 5
+    if (leftWall && topWall) return true;
+    if (rightWall && topWall) return true;
+    if (leftWall && bottomWall) return true;
+    if (rightWall && bottomWall) return true;
 
-    # 4. 朝向食物奖励
-    if target_food:
-        head = snake.head
-        current_dist = abs(head[0] - target_food[0]) \
-                      + abs(head[1] - target_food[1])
-        new_dist = abs(pos[0] - target_food[0]) \
-                  + abs(pos[1] - target_food[1])
-        if new_dist < current_dist:
-            score += 50
-    return score
+    return false;
+}
 \end{lstlisting}
 
-第一个维度是可达空间。以候选位置为起点BFS，统计$\delta$步内可达格子数。$\delta=10$时最坏情况：
-\begin{equation}
-	T_{space} = O(b^\delta)
-\end{equation}
-$b$是平均分支因子，四方向网格里$b \le 4$。实际障碍物和边界约束会让扩展数远小于理论值。每帧4个候选方向各算一次，总开销能接受。
+\subsection{IDA*搜索实现}
 
-第二个维度是边缘惩罚。位置$p=(x,y)$到最近边缘的距离：
-\begin{equation}
-	d_{edge}(p) = \min(x, y, W - x - 1, H - y - 1)
-\end{equation}
-$d_{edge}(p) < m$（$m=3$）时惩罚：
-\begin{equation}
-	D(p) = -(m - d_{edge}(p)) \cdot \lambda
-\end{equation}
-$\lambda=20$是惩罚系数。这个值反复调过——太小蛇还是会贴边走，太大蛇过度保守浪费空间。
+IDA*是系统的核心搜索算法：
 
-第三个维度是邻居数，统计候选位置四周有几个非障碍邻居：
-\begin{equation}
-	N(p) = \sum_{(dx,dy) \in \{(0,\pm1),(\pm1,0)\}} \mathbb{1}[(x+dx, y+dy) \notin O]
-\end{equation}
-$\mathbb{1}[\cdot]$是指示函数，$O$是障碍物集合。这个指标比可达空间粗糙（只看一步），但计算几乎免费，当辅助用。
+\begin{lstlisting}[language=c++,caption={IDA*搜索实现（ida_star.cpp）}]
+int IDASolver::search(int g, int bound, State& state,
+                       std::vector<State>& path,
+                       std::vector<Direction>& moves) {
+    int h = f(state, g);
 
-第四个是朝向食物奖励：
-\begin{equation}
-	F(p) =
-	\begin{cases}
-		\beta & \text{if } d_{Man}(p, g) < d_{Man}(head, g) \\
-		0     & \text{otherwise}
-	\end{cases}
-\end{equation}
-$\beta=50$，$d_{Man}$是Manhattan距离，$g$是食物位置。即使食物到不了，蛇也应该尽量靠近——等蛇身收缩、食物变可达时，更近的距离意味着更快响应。
+    if (h == std::numeric_limits<int>::max()) {
+        return std::numeric_limits<int>::max();
+    }
 
-这些参数（10、3、20、5、50）没有理论依据，全是试出来的。不同参数组合下蛇的行为差异很大，这也是游戏AI调参的常态\upcite{15}。
+    int f = g + h;
+    if (f > bound) {
+        return f;
+    }
 
-% TODO: 插入图4-3 安全评估函数参数敏感性分析
+    if (h == 0) {
+        return -1;
+    }
 
-\subsection{算法可视化实现}
+    nodesExpanded++;
+    maxDepthReached = std::max(maxDepthReached, g);
 
-调AI行为是游戏开发的难点。蛇为什么突然走向死路？A*到底搜了多大范围？纯文本日志很难看出来。所以系统在游戏窗口右侧加了个A*可视化面板。
+    if (isTimeExpired() || cancelRequested) {
+        return std::numeric_limits<int>::max();
+    }
 
-数据收集嵌在\texttt{find\_path}里。每步搜索迭代记录开放列表、关闭列表和搜索状态：
+    auto legalMoves = getLegalMoves(state);
+    int minBound = std::numeric_limits<int>::max();
 
-\begin{lstlisting}[language=python,caption={搜索过程记录（pathfinder.py）}]
-self.open_set_history.append(
-    [n.position for n in open_set])
-self.closed_set_history.append(set(closed_set))
-self.search_steps.append({
-    'step': step,
-    'current': current.position,
-    'open_size': len(open_set),
-    'closed_size': len(closed_set)
-})
+    for (const auto& [dir, boxPos] : legalMoves) {
+        State newState = applyMove(state, dir, boxPos);
+
+        auto it = visited.find(newState.hash);
+        if (it != visited.end() && it->second <= g + 1) {
+            continue;
+        }
+
+        visited[newState.hash] = g + 1;
+        path.push_back(newState);
+        moves.push_back(dir);
+
+        int t = search(g + 1, bound, newState, path, moves);
+
+        if (t == -1) {
+            return -1;
+        }
+
+        if (t < minBound) {
+            minBound = t;
+        }
+
+        path.pop_back();
+        moves.pop_back();
+    }
+
+    return minBound == std::numeric_limits<int>::max() ? bound : minBound;
+}
 \end{lstlisting}
 
-\texttt{Renderer.draw\_astar\_visualization}负责把这些数据渲染到右侧面板。用缩小的网格展示完整搜索过程：灰色是静态障碍，蓝色是已探索节点（closed set），橙色是待探索节点（open set），黄色是最终路径，绿色和红色分别标记起点终点。从这个面板能直接看出A*的搜索方向偏向、障碍物对搜索范围的约束、以及路径是否经过了狭窄通道。
+\subsection{地图解析器实现}
 
-% TODO: 插入图4-4 A*算法可视化面板截图
+地图解析器支持标准XSB格式：
 
-可视化数据更新频率通过\texttt{ASTAR\_UPDATE\_INTERVAL=500ms}控制。每帧都重新跑A*更新可视化太耗资源，500ms间隔在视觉连续性和性能之间取了平衡。
+\begin{lstlisting}[language=c++,caption={XSB格式解析（map_parser.cpp）}]
+MapParser::ParseResult MapParser::parseLines(
+    const std::vector<std::string>& lines) {
 
-可视化数据收集本身也增加了\texttt{find\_path}的执行时间。记录\texttt{open\_set\_history}涉及列表深拷贝，搜索节点多的时候会拖慢速度。生产环境里这些代码应该条件编译或者直接去掉。
+    ParseResult result;
+
+    size_t maxWidth = 0;
+    for (const auto& l : lines) {
+        maxWidth = std::max(maxWidth, l.size());
+    }
+
+    std::vector<std::string> normalized;
+    for (const auto& l : lines) {
+        if (!l.empty()) {
+            std::string row = l;
+            while (row.size() < maxWidth) row += ' ';
+            normalized.push_back(row);
+        }
+    }
+
+    for (int y = 0; y < static_cast<int>(normalized.size()); y++) {
+        const std::string& l = normalized[y];
+        for (int x = 0; x < static_cast<int>(l.size()); x++) {
+            char c = l[x];
+            Position pos(x, y);
+
+            if (c == PLAYER || c == PLAYER_ON_TARGET) {
+                result.player = pos;
+            }
+            if (c == BOX || c == BOX_ON_TARGET) {
+                result.boxes.push_back(pos);
+            }
+            if (c == TARGET || c == BOX_ON_TARGET || c == PLAYER_ON_TARGET) {
+                result.targets.push_back(pos);
+            }
+        }
+    }
+
+    result.map = normalized;
+    result.height = static_cast<int>(normalized.size());
+    result.width = static_cast<int>(maxWidth);
+    result.success = true;
+    return result;
+}
+\end{lstlisting}
+
+\subsection{游戏引擎实现}
+
+游戏引擎处理推箱子的基本规则：
+
+\begin{lstlisting}[language=c++,caption={移动逻辑实现（game_engine.cpp）}]
+MoveResult GameEngine::move(State& state, Direction dir) {
+    Position newPlayerPos = state.player.move(dir);
+
+    if (!inBounds(newPlayerPos.x, newPlayerPos.y)) {
+        return MoveResult::OUT_OF_BOUNDS;
+    }
+
+    if (isWall(newPlayerPos.x, newPlayerPos.y)) {
+        return MoveResult::HIT_WALL;
+    }
+
+    int boxIdx = -1;
+    for (int i = 0; i < static_cast<int>(state.boxes.size()); i++) {
+        if (state.boxes[i].x == newPlayerPos.x &&
+            state.boxes[i].y == newPlayerPos.y) {
+            boxIdx = i;
+            break;
+        }
+    }
+
+    if (boxIdx >= 0) {
+        Position boxDest = newPlayerPos.move(dir);
+
+        if (!inBounds(boxDest.x, boxDest.y)) {
+            return MoveResult::OUT_OF_BOUNDS;
+        }
+
+        if (isWall(boxDest.x, boxDest.y)) {
+            return MoveResult::HIT_WALL;
+        }
+
+        bool destHasBox = false;
+        for (const auto& box : state.boxes) {
+            if (box.x == boxDest.x && box.y == boxDest.y) {
+                destHasBox = true;
+                break;
+            }
+        }
+        if (destHasBox) {
+            return MoveResult::BOX_STUCK;
+        }
+
+        state.boxes[boxIdx] = boxDest;
+        std::sort(state.boxes.begin(), state.boxes.end());
+    }
+
+    state.player = newPlayerPos;
+    return MoveResult::OK;
+}
+\end{lstlisting}
