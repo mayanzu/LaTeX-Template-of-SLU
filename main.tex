@@ -1,139 +1,71 @@
-% ================= 文档用途说明 =================
-%{
-%   模板来源：安徽三联学院 马仲军老师 编写
-%   GitHub：https://github.com/mayanzu/LaTeX-Template-of-SLU
+% ============================================================
+%  零基础友好的 LaTeX 论文模板（含每条标签的逐行讲解）
+%  模板来源：安徽三联学院 马仲军老师
+%  改写：面向"第一次写 LaTeX"的本科生
 %
-%   本论文题目：基于遗传算法的高校自动化排课与冲突检测系统
-%   作者：[作者姓名]   学号：[学号]   指导教师：[导师姓名]
-%   编译器：必须使用 XeLaTeX（不能用 PDFLaTeX / LuaLaTeX）
+%  >>> 怎么读这个文件 <<<
+%  以 "%" 开头的整行都是注释，不会编译进 PDF；可以放心阅读，也可以删掉。
+%  你只需要修改没有被 "%" 注释掉的那些行（也就是真正的命令）。
 %
-%   ----------------------------------------------------------------
-%   【一、目录结构】
-%     cover/        - 封面 (cover_cyber.tex)
-%     abstract/     - 中英文摘要 (abstract.tex)
-%     body/         - 章节正文 (1.tex ~ 7.tex)
-%     acknowledge/  - 致谢 (acknowledge.tex)
-%     pic/          - 图片资源（PNG，由 code/generate_thesis_figures.py
-%                     与 code/capture_screenshots.py 自动生成）
+%  >>> 写作要求：不要使用 \begin{itemize}...\end{itemize} 列表环境 <<<
 %
-%   【二、章节对应】
-%     body/1.tex    第一章 绪论
-%     body/2.tex    第二章 相关技术介绍
-%     body/3.tex    第三章 系统需求分析与总体设计
-%     body/4.tex    第四章 遗传算法设计与优化
-%     body/5.tex    第五章 系统详细设计与实现
-%     body/6.tex    第六章 系统测试与结果分析
-%     body/7.tex    第七章 总结与展望
+%  >>> 写作要求：不要使用特殊符号或装饰字符；需要符号时改用普通文字或 LaTeX 命令 <<<
 %
-%   ----------------------------------------------------------------
-%   【三、编译方式】
-%     VS Code：装 LaTeX Workshop 插件，Ctrl+Alt+B
-%     命令行：xelatex main.tex 连跑两次（首跑生成 .aux/.toc，
-%             再跑解析图表与文献交叉引用）
+%  >>> 写作要求：流程图全部使用矢量图插入，不使用截图或位图替代 <<<
+%      合规格式：TikZ（LaTeX 原生矢量，推荐）、PDF 矢量图、SVG（需配合 svg 宏包）
+%      不允许：PNG / JPG / BMP 等位图截图
 %
-%   ----------------------------------------------------------------
-%   【四、本论文遵守的写作 / 排版规范】（重要，二次编辑请保持一致）
+%  >>> 写作要求：参考文献以近五年高质量英文论文为主，总数不低于 20 篇 <<<
 %
-%   1) 段落 / 标题层级
-%      仅使用 \section / \subsection / \subsubsection 三层。
-%      不使用 \paragraph、\subparagraph —— 模板未配置其样式。
-%      短分点请用 \subsubsection 或 "\textbf{X}：内容"（仅模板已使用
-%      的位置），避免在段首加 \textbf 造成无首行缩进。
+%  >>> 写作要求：只使用模板已定义的命令和环境；不要画蛇添足 <<<
+%      不允许：自行 \usepackage 新宏包、自行 \newcommand 新命令、自行调整字体/字号/页边距/行距等格式
+%      不允许：添加模板未提供的标签、环境或样式（包括但不限于 itemize/enumerate/description 列表、
+%               自定义 tcolorbox、自行修改 caption/section 样式等）
+%      原因：本模板的格式已按学校论文规范配置，任何额外标签或样式调整都会破坏既定格式
+%      如确有必要新增功能，先与指导教师确认
 %
-%   2) 列表
-%      不使用 \begin{itemize} / \begin{enumerate}，全部以散文叙述。
-%      也避免 "其一/其二"、"一是/二是/三是"、"首先/其次/第三"、
-%      "第一/第二/.../第五" 等罗列式连接词，改用 "在……层面"、
-%      "其中"、"同时"、"此外" 等自然衔接。
+%  >>> 写作要求：论文必须包含以下基本图表元素，缺一不可 <<<
+%      1. 系统总体架构图（第 3 章）：用 TikZ 绘制，展示模块层次与依赖关系
+%      2. 核心方法流程图（第 4 章）：用 TikZ 绘制，展示算法/方法的整体流程
+%      3. 关键机制示意图（第 4 章）：至少 1 张，配合公式说明编码、算子或数据结构
+%      4. 算法伪代码（第 4 章）：使用 algorithm2e 环境给出主流程伪代码
+%      5. 系统界面截图（第 5 章）：≥ 4 张，覆盖主要功能页面（数据/配置/运行/结果）
+%      6. 实验结果图（第 6 章）：≥ 2 张，含基线对比图与收敛/性能曲线
+%      7. 数据/参数表格（第 3、4、6 章）：用 tabularx 给出关键数据规模与参数清单
+%      上述图表均需配 caption 与 label，并在正文中以 "图~\ref{fig:xxx}" 方式引用
 %
-%   3) 公式编号
-%      章节-序号格式（如 4-7、2-3），由 \theequation 自动生成。
-%      不用 \tag 自定义编号（如 \tag{H1}）。
-%      行内公式用 $...$，行间公式用 \begin{equation} ... \end{equation}，
-%      多行联立用 \begin{align}（无 \tag）。
+%  ============================================================
+%  >>> 论文结构（固化规定）：全文共 7 章 <<<
 %
-%   4) 图、表编号
-%      图：figure 环境 + \caption + \label，编号为 章节-序号。
-%      图片内部不要再写 "图 X-X" 标题——LaTeX caption 已经标了。
-%      表：tabularx 环境，宽度 \linewidth，三线表样式（\hline 三道）。
+%  第 1 章 绪论 (body/1.tex)
+%      研究背景与意义、国内外研究现状、论文主要工作、论文组织结构
 %
-%   5) 算法伪代码
-%      algorithm2e 环境，选项已设为 ruled,lined,linesnumbered；
-%      \DontPrintSemicolon、\SetAlgoLined、\KwIn / \KwOut；
-%      控制流用 \For / \ForEach / \While / \eIf / \Return；
-%      行尾以 \; 结束。算法编号为全局递增（算法 1、算法 2）。
+%  第 2 章 相关技术介绍 (body/2.tex)
+%      问题的形式化定义、核心理论或算法的基本原理、所用工具与框架、开发环境
 %
-%   6) 引用
-%      正文上标式：\upcite{编号}，会渲染为 [n]。
-%      参考文献条目维护在文末 thebibliography 环境中。
+%  第 3 章 需求分析与总体设计 (body/3.tex)
+%      功能需求、非功能需求、总体架构、数据建模、典型数据规模或场景
 %
-%   7) 字体 / 中文加粗
-%      已开启 \xeCJKsetup{AutoFakeBold=true}，使 \textbf{中文} 真实
-%      加粗（默认宋体不带粗体字重）。若发现中文加粗失效，先检查这一行。
+%  第 4 章 核心方法设计 (body/4.tex)
+%      论文的方法/算法核心：模型设计、关键策略、流程与伪代码、参数选择
 %
-%   ----------------------------------------------------------------
-%   【五、转义字符速查】
-%     \#  → #     \$  → $     \%  → %     \&  → &
-%     \_  → _     \{  → {     \}  → }     \S  → §
-%     \P  → ¶     \dag → †    \ddag → ‡
-%     正文输入 % 三种方式：\verb|%|、\texttt{\%}、数学环境内 \%
+%  第 5 章 详细设计与实现 (body/5.tex)
+%      项目目录结构、关键模块的代码实现、界面或接口设计、辅助脚本
 %
-%   【六、特殊符号】（已加载 amssymb）
-%     \checkmark √   \star ★   \blacksquare ■   \triangle △
-%     \circ ○        \bullet ●  \infty ∞         \diamond ◆
+%  第 6 章 测试与结果分析 (body/6.tex)
+%      测试环境与基准、功能性测试、性能/收敛性、敏感性或对比实验、结果分析
 %
-%   ----------------------------------------------------------------
-%   【七、模板用法示例】
+%  第 7 章 总结与展望 (body/7.tex)
+%      工作总结、创新点与不足、未来工作展望
+%  ============================================================
 %
-%   插入图片：
-%     \begin{figure}[H]
-%       \centering
-%       \includegraphics[width=0.85\linewidth]{pic/xxx.png}
-%       \caption{图标题}
-%       \label{fig:xxx}
-%     \end{figure}
+%  >>> 怎么编译这个文件 <<<
+%  方式 A（VS Code）：安装 "LaTeX Workshop" 插件，打开 main.tex 后按 Ctrl+Alt+B
+%  方式 B（命令行）：在本目录下运行 "xelatex main.tex" 两次
+%      （第一次生成 .aux/.toc 等辅助文件，第二次才能解析交叉引用得到正确目录/编号）
 %
-%   插入表格：
-%     \begin{table}[H]
-%       \centering
-%       \caption{表标题}
-%       \label{tab:xxx}
-%       \begin{tabularx}{\linewidth}{l X l}
-%         \hline
-%         \textbf{列1} & \textbf{列2} & \textbf{列3} \\
-%         \hline
-%         a & b & c \\
-%         \hline
-%       \end{tabularx}
-%     \end{table}
-%
-%   插入代码：
-%     \begin{lstlisting}[language=python,caption={脚本说明}]
-%     code here ...
-%     \end{lstlisting}
-%
-%   插入算法：
-%     \begin{algorithm}[!ht]
-%     \caption{算法标题}\label{algo:xxx}
-%     \DontPrintSemicolon \SetAlgoLined
-%     \KwIn{输入}
-%     \KwOut{输出}
-%     \For{...}{...\;}
-%     \Return{...}\;
-%     \end{algorithm}
-%
-%   ----------------------------------------------------------------
-%   【八、本项目附属脚本】
-%     code/generate_thesis_figures.py
-%         生成所有算法配图（流程图、染色体编码示意、架构图、收敛对比、
-%         基线对比等）。新增 / 修改算法配图时编辑此脚本后重新运行：
-%             python generate_thesis_figures.py
-%         输出至 thesis/pic/
-%     code/capture_screenshots.py
-%         Playwright 驱动无头 Chromium，自动遍历 Streamlit UI 的六个
-%         页面并截图，输出至 thesis/pic/ui_*.png
-%         先 streamlit run code/ui/app.py，再运行该脚本。
-%}
+%  >>> 重要：必须用 XeLaTeX 编译，不能用 PDFLaTeX，否则中文/字体会报错 <<<
+% ============================================================
 
 \documentclass[10pt,a4paper]{ctexart}
 
@@ -166,6 +98,8 @@
 \usepackage{listings,lstautogobble}
 \usepackage{makecell}
 \usepackage{underscore}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,fit,backgrounds}
 \setmainfont{Times New Roman}
 \setcitestyle{numbers,square}
 \newcommand{\upcite}[1]{$^{[#1]}$}
@@ -371,6 +305,10 @@
 	\bibitem[19]{ref19}Rappos E, Thiémard E, Robert S, Hêche J F. A mixed-integer programming approach for solving university course timetabling problems[J]. Journal of Scheduling, 2022, 25(4): 391-404.
 	\bibitem[20]{ref20}Thepphakorn T, Pongcharoen P. Modified and hybridised bi-objective firefly algorithms for university course scheduling[J]. Soft Computing, 2023, 27(14): 9735-9772.
 	\bibitem[21]{ref21}Carlsson M, Ceschia S, Di Gaspero L, Mikkelsen R Ø, Schaerf A, Stidsen T. Exact and metaheuristic methods for a real-world examination timetabling problem[J]. Journal of Scheduling, 2023, 26(4): 353-367.
+	\bibitem[22]{ref22}Han X, Wang D. Gradual optimization of university course scheduling problem using genetic algorithm and dynamic programming[J]. Algorithms, 2025, 18(3): 158.
+	\bibitem[23]{ref23}Mahlous A R, Mahlous H. Student timetabling genetic algorithm accounting for student preferences[J]. PeerJ Computer Science, 2023, 9: e1200.
+	\bibitem[24]{ref24}Gu X, Krish M, Sohail S, Thakur S, Sabrina F, Fan Z. A technical review on solving university timetabling problems[J]. Computation, 2025, 13(1): 10.
+	\bibitem[25]{ref25}Diallo F, Tudose C P. Optimizing the scheduling of teaching activities in a faculty[J]. Applied Sciences, 2024, 14(20): 9554.
 \end{thebibliography}
 
 \normalfont

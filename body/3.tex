@@ -17,7 +17,34 @@
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.85\linewidth]{pic/system_architecture.png}
+  \begin{tikzpicture}[
+    layer/.style={rectangle,draw,thick,rounded corners=3pt,align=center,
+                   minimum height=1.1cm,font=\small,inner sep=4pt},
+    arrow/.style={-{Latex[length=2mm]},thick,gray!70}
+  ]
+    \node[layer,fill=blue!10,minimum width=12cm] (ui)
+      {\textbf{Streamlit Web UI} \\ \footnotesize 数据展示 \quad 参数配置 \quad 结果渲染};
+
+    \node[layer,fill=green!10,minimum width=5.85cm,below=12pt of ui.south west,anchor=north west] (ga)
+      {\textbf{GA 调度引擎} \\ \footnotesize \texttt{scheduler.ga}};
+    \node[layer,fill=green!10,minimum width=5.85cm,below=12pt of ui.south east,anchor=north east] (cd)
+      {\textbf{冲突检测器} \\ \footnotesize \texttt{scheduler.conflict}};
+
+    \node[layer,fill=orange!12,minimum width=5.85cm,below=12pt of ga.south west,anchor=north west] (ft)
+      {\textbf{适应度评估} \\ \footnotesize \texttt{scheduler.fitness}};
+    \node[layer,fill=orange!12,minimum width=5.85cm,below=12pt of cd.south east,anchor=north east] (op)
+      {\textbf{编码与算子} \\ \footnotesize \texttt{scheduler.operators}};
+
+    \node[layer,fill=red!10,minimum width=12cm,below=12pt of ft.south west,anchor=north west] (dm)
+      {\textbf{数据模型层} \\ \footnotesize \texttt{scheduler.models}};
+
+    \draw[arrow] ($(ui.south)+(-3,0)$) -- ($(ga.north)$);
+    \draw[arrow] ($(ui.south)+(3,0)$) -- ($(cd.north)$);
+    \draw[arrow] (ga.south) -- (ft.north);
+    \draw[arrow] (cd.south) -- (op.north);
+    \draw[arrow] (ft.south) -- ($(dm.north)+(-3,0)$);
+    \draw[arrow] (op.south) -- ($(dm.north)+(3,0)$);
+  \end{tikzpicture}
   \caption{系统总体架构}
   \label{fig:arch}
 \end{figure}
