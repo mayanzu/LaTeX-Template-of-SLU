@@ -71,6 +71,38 @@
 %      - {>{\centering\arraybackslash}X >{\centering\arraybackslash}X ...}：多列均分宽度且居中（如数据规模表）
 %      注意：表格总宽度为 \linewidth 可确保表格不超出页面边界，且在页面中视觉协调
 %
+%  >>> 写作要求：算法伪代码必须使用 algorithm2e 环境 <<<
+%      算法伪代码是论文核心方法的重要表达形式，必须规范书写
+%      使用 algorithm2e 宏包提供的 algorithm 环境，标准格式如下：
+%        \begin{algorithm}[!ht]
+%        \caption{算法标题}\label{algo:name}
+%        \DontPrintSemicolon
+%        \SetAlgoLined
+%        \KwIn{输入参数说明}
+%        \KwOut{输出结果说明}
+%
+%        算法主体（使用 \For, \While, \If, \eIf 等控制结构）\;
+%        \Return{返回值}\;
+%        \end{algorithm}
+%      必需命令说明：
+%      - \DontPrintSemicolon：不在每行末尾自动打印分号，保持伪代码简洁
+%      - \SetAlgoLined：为控制结构（循环、条件）添加竖线，增强可读性
+%      - \KwIn{}：声明输入参数，格式为"变量名 说明"
+%      - \KwOut{}：声明输出结果
+%      - [!ht]：浮动体位置参数，!ht 表示优先放在当前位置或页面顶部
+%      控制结构关键字：
+%      - \For{条件}{循环体}：for 循环
+%      - \While{条件}{循环体}：while 循环
+%      - \If{条件}{语句块}：单分支条件
+%      - \eIf{条件}{真分支}{假分支}：双分支条件（else-if）
+%      - \ForEach{条件}{循环体}：foreach 循环
+%      - \Return{值}\;：返回语句
+%      注意事项：
+%      - 每条语句末尾用 \; 结束（因为已设置 \DontPrintSemicolon，不会显示分号）
+%      - 算法必须有 \caption 和 \label，便于在正文中引用（如"算法~\ref{algo:ga}"）
+%      - 数学符号使用 $...$ 包裹，保持与正文公式一致的排版
+%      参考：正文 body/4.tex 中的算法~\ref{algo:init} 和算法~\ref{algo:ga}
+%
 %  >>> 写作要求：论文总页数控制在 40 页左右 <<<
 %      正文部分（第 1-7 章）约 33-35 页，封面、摘要、目录、致谢、参考文献等约 5-7 页
 %      各章最低页数要求：
