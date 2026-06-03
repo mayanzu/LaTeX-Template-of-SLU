@@ -39,6 +39,50 @@
 %      7. 数据/参数表格（第 3、4、6 章）：用 tabularx 给出关键数据规模与参数清单
 %      上述图表均需配 caption 与 label，并在正文中以 "图~\ref{fig:xxx}" 方式引用
 %
+%  >>> 写作要求：位图与系统截图的排版规范（学术论文标准）<<<
+%      适用对象：第 5 章系统界面截图、第 6 章实验结果图等所有 PNG/JPG 位图
+%      （TikZ、PDF 等矢量图不受分辨率约束，按矢量图要求处理即可）
+%
+%      1. 分辨率：位图在论文中的"有效分辨率"应不低于 300 DPI。
+%         有效 DPI = 图片像素宽度 / 图片在版面上的物理宽度（英寸）。
+%         版心宽度约 16 cm（6.3 in），故占满整行（width=\linewidth）时，
+%         图片像素宽度应不低于 1900 px；半栏（0.5\linewidth）则不低于 950 px。
+%         注意：位图的像素是文件固有属性，LaTeX 端无法"提高"分辨率，
+%         只能通过控制显示宽度来保证有效 DPI。分辨率不足时须用更高 DPI
+%         重新导出原图（截图用 2x/Retina 模式，绘图用 savefig(dpi=300)）。
+%
+%      2. 显示宽度：用 width=<比例>\linewidth 控制，禁止写死 cm/pt 绝对尺寸。
+%         - 信息密集的整页截图（含表格、多列布局）：width=\linewidth（占满版心）
+%         - 单图实验曲线 / 内容较简的截图：width=0.8\linewidth ~ 0.85\linewidth
+%         - 严禁把小图放大到超过其原始像素对应的尺寸（会发虚、出现马赛克）
+%
+%      3. 多图排版：两张及以上逻辑相关的图，应使用 subcaption 宏包的
+%         subfigure 环境组成"图组"，共用一个大编号，子图用 (a)(b)(c) 区分，
+%         正文以 "图~\ref{fig:xxx}(a)" 方式引用。示例：
+%           \begin{figure}[H]
+%             \centering
+%             \begin{subfigure}{0.48\linewidth}
+%               \centering
+%               \includegraphics[width=\linewidth]{pic/a.png}
+%               \caption{子图标题 A}\label{fig:grp-a}
+%             \end{subfigure}
+%             \hfill
+%             \begin{subfigure}{0.48\linewidth}
+%               \centering
+%               \includegraphics[width=\linewidth]{pic/b.png}
+%               \caption{子图标题 B}\label{fig:grp-b}
+%             \end{subfigure}
+%             \caption{图组总标题}\label{fig:grp}
+%           \end{figure}
+%         横向并排用两个 0.48\linewidth 的 subfigure 加 \hfill；
+%         上下堆叠则各用 0.8\linewidth 并在两个 subfigure 之间空一行。
+%         参考：正文 body/5.tex 中 GA 配置/运行页（图~\ref{fig:ui-ga}）的图组示例。
+%
+%      4. 内容与裁剪：截图须裁去浏览器地址栏、操作系统任务栏等无关边框，
+%         只保留系统界面本身；关键信息（指标卡片、表头、曲线坐标轴）须清晰可读。
+%
+%      5. 格式：界面截图、照片用 PNG；矢量可导出的图表优先用 PDF/TikZ 矢量图。
+%
 %  >>> 写作要求：所有表格必须使用三线表格式 <<<
 %      三线表是学术论文的标准表格格式，只使用三条横线：顶线、栏目线、底线
 %      实现方式：使用 booktabs 宏包提供的命令
@@ -172,6 +216,7 @@
 \usepackage{gbt7714}
 \usepackage{amsmath,amsthm,amssymb,amsfonts,mathrsfs,mathtools}
 \usepackage{graphicx,caption,float}
+\usepackage{subcaption}
 \usepackage{geometry,fancyhdr}
 \usepackage{appendix}
 \usepackage{enumerate}

@@ -220,22 +220,26 @@ Streamlit UI 通过左侧的单选导航将系统功能划分为六个页面，�
 
 \subsubsection{GA 配置与运行页}
 
-用户可通过滑块调整种群规模、进化代数、交叉率、变异率、锦标赛 k 值、精英保留个数以及随机种子 (图~\ref{fig:ui-cfg})。点击"启动遗传算法"按钮后，进度条会实时反映当前进度，下方同时刷新种群最优 cost 与当前硬冲突数。
+用户可通过滑块调整种群规模、进化代数、交叉率、变异率、锦标赛 k 值、精英保留个数以及随机种子 (图~\ref{fig:ui-ga}(a))。点击"启动遗传算法"按钮后，进度条会实时反映当前进度，下方同时刷新种群最优 cost 与当前硬冲突数。GA 运行结束后，页面将显示完成时长、末代 cost 与硬冲突数，并并排展示收敛曲线与硬冲突下降曲线 (图~\ref{fig:ui-ga}(b))，该信息是用户判断算法是否成功收敛的主要依据。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.96\linewidth]{pic/ui_ga_config.png}
+  \begin{subfigure}{0.85\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{pic/ui_ga_config.png}
+    \caption{参数配置与运行进度}
+    \label{fig:ui-cfg}
+  \end{subfigure}
+
+  \vspace{8pt}
+  \begin{subfigure}{0.85\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{pic/ui_ga_running_done.png}
+    \caption{运行完成后的实时反馈}
+    \label{fig:ui-done}
+  \end{subfigure}
   \caption{GA 配置与运行页}
-  \label{fig:ui-cfg}
-\end{figure}
-
-GA 运行结束后，页面将显示完成时长、末代 cost 与硬冲突数，并并排展示收敛曲线与硬冲突下降曲线 (图~\ref{fig:ui-done})。该信息是用户判断算法是否成功收敛的主要依据。
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.96\linewidth]{pic/ui_ga_running_done.png}
-  \caption{GA 运行完成后的实时反馈}
-  \label{fig:ui-done}
+  \label{fig:ui-ga}
 \end{figure}
 
 \subsubsection{排课结果页}
