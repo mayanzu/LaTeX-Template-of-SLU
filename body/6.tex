@@ -11,16 +11,16 @@
   \caption{实验环境}
   \label{tab:env}
   \begin{tabularx}{\linewidth}{l X}
-    \hline
+    \toprule
     \textbf{项目} & \textbf{配置} \\
-    \hline
+    \midrule
     操作系统 & Windows 11 Pro for Workstations \\
     CPU & Intel Core i5 (4 cores) \\
     内存 & 16 GB DDR4 \\
     Python & 3.13.0 \\
     主要依赖 & NumPy 1.x, pandas 2.x, Matplotlib 3.x, Plotly 5.x, Streamlit 1.x \\
     随机种子 & 42 (主实验), 0/1 (对比实验) \\
-    \hline
+    \bottomrule
   \end{tabularx}
 \end{table}
 
@@ -35,15 +35,15 @@
   \caption{功能性测试结果}
   \label{tab:func}
   \begin{tabularx}{\linewidth}{l X c}
-    \hline
+    \toprule
     \textbf{功能} & \textbf{测试方法} & \textbf{结果} \\
-    \hline
+    \midrule
     数据维护 & 进入"数据查看"页核对 39 门课程的教师、班级关联 & 通过 \\
     自动排课 & 在默认参数下连续运行 5 次，每次采用不同随机种子 & 5/5 收敛到 0 硬冲突 \\
     冲突检测 & 人为将两个 lesson 设至同一 (slot, room)，验证是否报错 & 通过 \\
     结果展示 & 从班级视角查看 12 个班级的课表，核对周课时是否匹配 & 全部通过 \\
     过程可视化 & 启动 GA 时观察收敛曲线是否实时刷新 & 通过 \\
-    \hline
+    \bottomrule
   \end{tabularx}
 \end{table}
 

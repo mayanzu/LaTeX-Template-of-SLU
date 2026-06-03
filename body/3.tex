@@ -60,9 +60,9 @@
   \caption{数据模型类清单}
   \label{tab:models}
   \begin{tabularx}{\linewidth}{l X}
-    \hline
+    \toprule
     \textbf{类名} & \textbf{含义与主要字段} \\
-    \hline
+    \midrule
     \texttt{Teacher} & 教师：工号、姓名、所在部门、偏好时间段 \\
     \texttt{Classroom} & 教室：编号、名称、容量、类型 (lecture/lab/multimedia) \\
     \texttt{TimeSlot} & 时间槽：id、星期、节次、标签 \\
@@ -71,7 +71,7 @@
     \texttt{Lesson} & 课程实例：由 Course 按周课时展开后得到，是 GA 排课的基本单元 \\
     \texttt{ProblemInstance} & 问题实例：聚合上述六类对象，并提供查询方法 \\
     \texttt{Schedule} & 排课方案：按 Lesson 索引存储的 (slot\_idx, room\_idx) 序列 \\
-    \hline
+    \bottomrule
   \end{tabularx}
 \end{table}
 
@@ -84,11 +84,11 @@
   \caption{测试用例的规模}
   \label{tab:size}
   \begin{tabularx}{\linewidth}{>{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
-    \hline
+    \toprule
     教师数 & 教室数 & 时间槽数 & 班级数 & 课程数 & 课程实例数 \\
-    \hline
+    \midrule
     15 & 10 & 50 (5 天 $\times$ 10 节) & 12 & 39 & 62 \\
-    \hline
+    \bottomrule
   \end{tabularx}
 \end{table}
 

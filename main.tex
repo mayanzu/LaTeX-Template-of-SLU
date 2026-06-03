@@ -61,7 +61,7 @@
 %            \bottomrule
 %          \end{tabularx}
 %        \end{table}
-%      参考：正文中 body/3.tex 和 body/6.tex 的表格示例（需将 \hline 改为对应的三线表命令）
+%      参考：正文 body/3.tex、body/6.tex 中的表格均已采用三线表写法，可直接仿照
 %
 %  >>> 写作要求：表格宽度设置规范 <<<
 %      使用 tabularx 环境时，表格总宽度统一设置为 \linewidth（当前行宽）
@@ -187,11 +187,11 @@
 \usepackage{array}
 \usepackage{xlop}
 \usepackage{tabularx}
+\usepackage{booktabs}
 \renewcommand{\tabularxcolumn}[1]{m{#1}}
 \renewcommand{\arraystretch}{1.4}
 \usepackage{color,xcolor}
 \usepackage[ruled,lined,linesnumbered]{algorithm2e}
-\usepackage{algorithmic}
 \SetKw{Continue}{continue}
 \SetAlFnt{\small}
 \usepackage{listings,lstautogobble}
