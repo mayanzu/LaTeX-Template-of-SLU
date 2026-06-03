@@ -22,6 +22,23 @@
 %
 %  >>> 写作要求：参考文献以近五年高质量英文论文为主，总数不低于 20 篇 <<<
 %
+%  >>> 写作要求：参考文献统一采用 GB/T 7714—2015 数字（顺序编码制）格式 <<<
+%      正文用上标 \upcite{n} 顺序引用，文末参考文献按引用先后编号著录。
+%      各类型文献著录格式（[ ] 内为文献类型标志）：
+%      - 期刊   [J]：责任者. 题名[J]. 刊名, 年, 卷(期): 起止页码.
+%      - 专著   [M]：责任者. 书名[M]. 出版地: 出版者, 出版年.
+%      - 会议   [C]：责任者. 题名[C]//论文集名. 出版地: 出版者, 出版年: 页码.
+%      - 学位论文 [D]：责任者. 题名[D]. 保存地: 保存单位, 年份.
+%      - 报告   [R]：责任者. 题名[R]. 出版地: 出版者, 出版年.
+%      - 电子资源 [EB/OL]：责任者. 题名[EB/OL]. [引用日期]. 访问路径.
+%      著录细则：
+%      - 作者一律"姓在前、名缩写在后"（如 Holland J H）；作者不超过 3 位时全部列出，
+%        超过 3 位时只列前 3 位，其后加 ", et al."（中文文献用 "等"）。
+%      - 英文题名用句首字母大写、其余小写（专有名词、缩略语保持原样）；
+%        刊名 / 出版者 / 会议名保留其惯用大小写。
+%      - 各著录项之间以 ". " 分隔，每条以 "." 结尾；卷(期): 页码 一律用半角符号。
+%      - 出版地、出版者、引用日期等信息须据实补全，不得留空。
+%
 %  >>> 写作要求：只使用模板已定义的命令和环境；不要画蛇添足 <<<
 %      不允许：自行 \usepackage 新宏包、自行 \newcommand 新命令、自行调整字体/字号/页边距/行距等格式
 %      不允许：添加模板未提供的标签、环境或样式（包括但不限于 itemize/enumerate/description 列表、
@@ -307,6 +324,7 @@
   breaklines=true,
   captionpos=b,
   keepspaces=true,
+  columns=fullflexible,
   numbers=left,
   numbersep=5pt,
   showspaces=false,
@@ -428,30 +446,30 @@
 \begin{thebibliography}{99}
 	\large
 	\setlength{\itemsep}{1.5pt}
-	\bibitem[1]{ref1}Holland J H. Adaptation in Natural and Artificial Systems[M]. Ann Arbor: University of Michigan Press, 1975.
-	\bibitem[2]{ref2}Cooper T B, Kingston J H. The complexity of timetable construction problems[C]//International Conference on the Practice and Theory of Automated Timetabling, 1995: 281-295.
-	\bibitem[3]{ref3}Goldberg D E. Genetic Algorithms in Search, Optimization, and Machine Learning[M]. Boston: Addison-Wesley, 1989.
-	\bibitem[4]{ref4}Colorni A, Dorigo M, Maniezzo V. Genetic algorithms and highly constrained problems: the time-table case[C]//Parallel Problem Solving from Nature (PPSN I), 1991: 55-59.
+	\bibitem[1]{ref1}Holland J H. Adaptation in natural and artificial systems[M]. Ann Arbor: University of Michigan Press, 1975.
+	\bibitem[2]{ref2}Cooper T B, Kingston J H. The complexity of timetable construction problems[C]//Practice and Theory of Automated Timetabling. Berlin: Springer, 1995: 281-295.
+	\bibitem[3]{ref3}Goldberg D E. Genetic algorithms in search, optimization, and machine learning[M]. Boston: Addison-Wesley, 1989.
+	\bibitem[4]{ref4}Colorni A, Dorigo M, Maniezzo V. Genetic algorithms and highly constrained problems: the time-table case[C]//Parallel Problem Solving from Nature. Amsterdam: Elsevier, 1991: 55-59.
 	\bibitem[5]{ref5}Schaerf A. A survey of automated timetabling[J]. Artificial Intelligence Review, 1999, 13(2): 87-127.
-	\bibitem[6]{ref6}Chen M C, Sze S N, Goh S L, Sabar N R, Kendall G. A survey of university course timetabling problem: perspectives, trends and opportunities[J]. IEEE Access, 2021, 9: 106515-106529.
+	\bibitem[6]{ref6}Chen M C, Sze S N, Goh S L, et al. A survey of university course timetabling problem: perspectives, trends and opportunities[J]. IEEE Access, 2021, 9: 106515-106529.
 	\bibitem[7]{ref7}Burke E K, Newall J P. A multistage evolutionary algorithm for the timetable problem[J]. IEEE Transactions on Evolutionary Computation, 1999, 3(1): 63-74.
 	\bibitem[8]{ref8}Yu E, Sung K S. A genetic algorithm for a university weekly courses timetabling problem[J]. International Transactions in Operational Research, 2002, 9(6): 703-717.
-	\bibitem[9]{ref9}Moscato P. On Evolution, Search, Optimization, Genetic Algorithms and Martial Arts: Towards Memetic Algorithms[R]. Caltech Concurrent Computation Program Report 826, 1989.
+	\bibitem[9]{ref9}Moscato P. On evolution, search, optimization, genetic algorithms and martial arts: towards memetic algorithms[R]. Pasadena: California Institute of Technology, 1989.
 	\bibitem[10]{ref10}林冬梅, 王东. 高校排课系统中的算法研究[J]. 计算机工程与设计, 2007, 28(20): 4942-4944.
 	\bibitem[11]{ref11}王小平, 曹立明. 遗传算法——理论、应用与软件实现[M]. 西安: 西安交通大学出版社, 2002.
 	\bibitem[12]{ref12}周明, 孙树栋. 遗传算法原理及应用[M]. 北京: 国防工业出版社, 1999.
 	\bibitem[13]{ref13}陈晋音, 何辉豪. 基于改进遗传算法的高校排课系统[J]. 浙江工业大学学报, 2014, 42(5): 533-538.
-	\bibitem[14]{ref14}Streamlit Inc. Streamlit Documentation[EB/OL]. https://docs.streamlit.io/, 2025.
-	\bibitem[15]{ref15}De Jong K A. Analysis of the Behaviour of a Class of Genetic Adaptive Systems[D]. Ann Arbor: University of Michigan, 1975.
-	\bibitem[16]{ref16}Abdipoor S, Yaakob R, Goh S L, et al. Meta-heuristic approaches for the University Course Timetabling Problem[J]. Intelligent Systems with Applications, 2023, 19: 200253.
-	\bibitem[17]{ref17}Bashab A, Ibrahim A O, Hashem I A T, et al. Optimization techniques in University Timetabling Problem: constraints, methodologies, benchmarks, and open issues[J]. Computers, Materials \& Continua, 2023, 74(3): 6461-6484.
+	\bibitem[14]{ref14}Streamlit Inc. Streamlit documentation[EB/OL]. [2025-05-20]. https://docs.streamlit.io/.
+	\bibitem[15]{ref15}De Jong K A. Analysis of the behaviour of a class of genetic adaptive systems[D]. Ann Arbor: University of Michigan, 1975.
+	\bibitem[16]{ref16}Abdipoor S, Yaakob R, Goh S L, et al. Meta-heuristic approaches for the university course timetabling problem[J]. Intelligent Systems with Applications, 2023, 19: 200253.
+	\bibitem[17]{ref17}Bashab A, Ibrahim A O, Hashem I A T, et al. Optimization techniques in university timetabling problem: constraints, methodologies, benchmarks, and open issues[J]. Computers, Materials \& Continua, 2023, 74(3): 6461-6484.
 	\bibitem[18]{ref18}Davison M, Kheiri A, Zografos K G. Modelling and solving the university course timetabling problem with hybrid teaching considerations[J]. Journal of Scheduling, 2025, 28(2): 195-215.
-	\bibitem[19]{ref19}Rappos E, Thiémard E, Robert S, Hêche J F. A mixed-integer programming approach for solving university course timetabling problems[J]. Journal of Scheduling, 2022, 25(4): 391-404.
+	\bibitem[19]{ref19}Rappos E, Thiémard E, Robert S, et al. A mixed-integer programming approach for solving university course timetabling problems[J]. Journal of Scheduling, 2022, 25(4): 391-404.
 	\bibitem[20]{ref20}Thepphakorn T, Pongcharoen P. Modified and hybridised bi-objective firefly algorithms for university course scheduling[J]. Soft Computing, 2023, 27(14): 9735-9772.
-	\bibitem[21]{ref21}Carlsson M, Ceschia S, Di Gaspero L, Mikkelsen R Ø, Schaerf A, Stidsen T. Exact and metaheuristic methods for a real-world examination timetabling problem[J]. Journal of Scheduling, 2023, 26(4): 353-367.
+	\bibitem[21]{ref21}Carlsson M, Ceschia S, Di Gaspero L, et al. Exact and metaheuristic methods for a real-world examination timetabling problem[J]. Journal of Scheduling, 2023, 26(4): 353-367.
 	\bibitem[22]{ref22}Han X, Wang D. Gradual optimization of university course scheduling problem using genetic algorithm and dynamic programming[J]. Algorithms, 2025, 18(3): 158.
 	\bibitem[23]{ref23}Mahlous A R, Mahlous H. Student timetabling genetic algorithm accounting for student preferences[J]. PeerJ Computer Science, 2023, 9: e1200.
-	\bibitem[24]{ref24}Gu X, Krish M, Sohail S, Thakur S, Sabrina F, Fan Z. A technical review on solving university timetabling problems[J]. Computation, 2025, 13(1): 10.
+	\bibitem[24]{ref24}Gu X, Krish M, Sohail S, et al. A technical review on solving university timetabling problems[J]. Computation, 2025, 13(1): 10.
 	\bibitem[25]{ref25}Diallo F, Tudose C P. Optimizing the scheduling of teaching activities in a faculty[J]. Applied Sciences, 2024, 14(20): 9554.
 \end{thebibliography}
 

@@ -10,25 +10,25 @@
 
 \begin{lstlisting}[language=bash,caption={项目目录结构}]
 遗传算法排课系统/
-├── code/
-│   ├── scheduler/             # 算法核心
-│   │   ├── __init__.py
-│   │   ├── models.py          # 数据模型 (Course/Teacher/...)
-│   │   ├── data.py            # 模拟数据集
-│   │   ├── operators.py       # GA 算子 (init / select / cross / mutate)
-│   │   ├── fitness.py         # 适应度评估
-│   │   ├── conflict.py        # 冲突检测器
-│   │   └── ga.py              # GA 主循环
-│   ├── ui/
-│   │   └── app.py             # Streamlit Web UI
-│   ├── smoke_test.py          # 命令行冒烟测试
-│   ├── capture_screenshots.py # 自动化截图脚本
-│   ├── generate_thesis_figures.py  # 论文配图生成
-│   └── requirements.txt
-└── thesis/                    # LaTeX 论文
-    ├── main.tex
-    ├── body/ ...
-    └── pic/                   # 论文配图与系统截图
+|-- code/
+|   |-- scheduler/             # 算法核心
+|   |   |-- __init__.py
+|   |   |-- models.py          # 数据模型 (Course/Teacher/...)
+|   |   |-- data.py            # 模拟数据集
+|   |   |-- operators.py       # GA 算子 (init / select / cross / mutate)
+|   |   |-- fitness.py         # 适应度评估
+|   |   |-- conflict.py        # 冲突检测器
+|   |   `-- ga.py              # GA 主循环
+|   |-- ui/
+|   |   `-- app.py             # Streamlit Web UI
+|   |-- smoke_test.py          # 命令行冒烟测试
+|   |-- capture_screenshots.py # 自动化截图脚本
+|   |-- generate_thesis_figures.py  # 论文配图生成
+|   `-- requirements.txt
+`-- thesis/                    # LaTeX 论文
+    |-- main.tex
+    |-- body/ ...
+    `-- pic/                   # 论文配图与系统截图
 \end{lstlisting}
 
 \subsection{数据模型实现}
