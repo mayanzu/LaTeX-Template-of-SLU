@@ -430,13 +430,17 @@
 \pagestyle{body}
 
 \begin{sloppypar}
-	\newpage\input{"body/1.tex"}
-	\newpage\input{"body/2.tex"}
-	\newpage\input{"body/3.tex"}
-	\newpage\input{"body/4.tex"}
-	\newpage\input{"body/5.tex"}
-	\newpage\input{"body/6.tex"}
-	\newpage\input{"body/7.tex"}
+	% 章节之间必须用 \clearpage 而不是 \newpage：
+	% \newpage 只是换页，不会强制排出尚未放置的浮动体（figure/table/algorithm）；
+	% 若某章末尾的算法或图表被推迟，会被排到下一章首页页顶，导致下一章不另起一页。
+	% \clearpage 会先清空本章所有浮动体，再开新页。
+	\clearpage\input{"body/1.tex"}
+	\clearpage\input{"body/2.tex"}
+	\clearpage\input{"body/3.tex"}
+	\clearpage\input{"body/4.tex"}
+	\clearpage\input{"body/5.tex"}
+	\clearpage\input{"body/6.tex"}
+	\clearpage\input{"body/7.tex"}
 \end{sloppypar}
 
 \clearpage
