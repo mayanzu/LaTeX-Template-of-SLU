@@ -236,18 +236,15 @@
 \usepackage{subcaption}
 \usepackage{geometry,fancyhdr}
 \usepackage{appendix}
-\usepackage{enumerate}
 \usepackage{tablefootnote}
 \usepackage{tocloft}
-\usepackage[colorlinks,linkcolor=black,anchorcolor=black,citecolor=black]{hyperref}
+% 包加载顺序要求：footmisc 必须在 hyperref 之前，否则符号脚注与超链接冲突
 \usepackage[symbol]{footmisc}
-\usepackage{cleveref}
+\usepackage[colorlinks,linkcolor=black,anchorcolor=black,citecolor=black]{hyperref}
 \usepackage{fontspec}
 \usepackage{setspace}
-\usepackage{framed}
 \usepackage{mdframed}
 \usepackage{array}
-\usepackage{xlop}
 \usepackage{tabularx}
 \usepackage{booktabs}
 \renewcommand{\tabularxcolumn}[1]{m{#1}}
@@ -258,9 +255,10 @@
 \SetAlFnt{\small}
 \usepackage{listings,lstautogobble}
 \usepackage{makecell}
-\usepackage{underscore}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,fit,backgrounds}
+% cleveref 必须是最后加载的宏包之一（hyperref、amsmath、algorithm2e、caption 之后），否则算法/图表引用格式识别失效
+\usepackage{cleveref}
 \setmainfont{Times New Roman}
 \setcitestyle{numbers,square}
 \newcommand{\upcite}[1]{$^{[#1]}$}
@@ -273,7 +271,6 @@
 }
 
 %-----------------------------对目录格式进行修改--------------------------------%
-\usepackage{tocloft}
 \setlength\cftbeforesecskip{4pt}
 \setlength\cftbeforesubsecskip{4pt}
 \setlength\cftbeforesubsubsecskip{4pt}
