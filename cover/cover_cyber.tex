@@ -1,6 +1,14 @@
-%可固定下划线长度
+%固定下划线宽度的填空；内容超长时横向压缩至单行塞满（公文标题风格）
 \makeatletter
-\newcommand\dlmu[2][4cm]{\hskip1pt\underline{\hb@xt@ #1{\hss#2\hss}}\hskip3pt}
+\newcommand\dlmu[2][4cm]{%
+  \hskip1pt
+  \settowidth{\dimen@}{#2}%
+  \ifdim\dimen@>#1\relax
+    \underline{\hb@xt@ #1{\hss\resizebox{#1}{\height}{#2}\hss}}%
+  \else
+    \underline{\hb@xt@ #1{\hss#2\hss}}%
+  \fi
+  \hskip3pt}
 \makeatother
 
 \begin{figure}[t]
@@ -18,7 +26,7 @@
 \Large
 \noindent 
 \vspace{0.5cm}
-题 \hspace{24pt} 目：\ \dlmu[380pt]{基于遗传算法的高校自动化排课与冲突检测系统} \\ %题目
+题 \hspace{24pt} 目：\ \dlmu[380pt]{基于动态网格策略的股票历史数据回测与分析系统的设计与实现} \\ %题目
 \vspace{0.5cm}
 学生姓名：\ \dlmu[170pt]{\hspace{1pt}}  学号:\ \dlmu[170pt]{\hspace{1pt}} \\ %学生信息
 \vspace{0.5cm}
